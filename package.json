@@ -1,0 +1,29 @@
+{
+  "name": "suiteql-cli",
+  "version": "1.0.0",
+  "description": "CLI tool for executing SuiteQL queries against NetSuite",
+  "main": "index.js",
+  "bin": {
+    "suiteql-cli": "./index.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "netsuite",
+    "suiteql",
+    "cli"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "inquirer": "^9.2.12",
+    "netsuite-api-client": "^1.0.0"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0"
+  }
+}
