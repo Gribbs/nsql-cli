@@ -1,11 +1,11 @@
 # SuiteQL CLI
 
-A command-line tool for executing SuiteQL queries against NetSuite using the `netsuite-api-client` package. Manage multiple NetSuite account profiles (sandbox/production) with AWS CLI-style configuration.
+A command-line tool for executing SuiteQL queries against NetSuite using the `netsuite-api-client` package. Manage multiple NetSuite account profiles (sandbox/production).
 
 ## Features
 
 - Execute SuiteQL queries from the command line
-- Profile-based credential management (similar to AWS CLI)
+- Profile-based credential management
 - Support for multiple NetSuite accounts (sandbox, production, etc.)
 - Interactive configuration setup
 - Multiple output formats (JSON, CSV)
