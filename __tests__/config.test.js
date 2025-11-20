@@ -1,6 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+
+// Mock os.homedir() to use a temporary directory before requiring config
+const testConfigDir = path.join(os.tmpdir(), `suiteql-cli-test-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+const testHomeDir = path.dirname(testConfigDir);
+
+jest.spyOn(os, 'homedir').mockReturnValue(testHomeDir);
+
+// Clear module cache and require config after mocking
+delete require.cache[require.resolve('../lib/config')];
 const {
   readConfig,
   writeConfig,
@@ -35,11 +44,12 @@ describe('config', () => {
   });
 
   afterAll(() => {
-    // Restore original config if it existed
-    if (originalConfigContent !== null) {
-      fs.writeFileSync(CONFIG_FILE, originalConfigContent, 'utf8');
-    } else if (fs.existsSync(CONFIG_FILE)) {
-      fs.unlinkSync(CONFIG_FILE);
+    // Restore original homedir mock
+    os.homedir.mockRestore();
+    
+    // Clean up test config directory
+    if (fs.existsSync(testConfigDir)) {
+      fs.rmSync(testConfigDir, { recursive: true, force: true });
     }
   });
 

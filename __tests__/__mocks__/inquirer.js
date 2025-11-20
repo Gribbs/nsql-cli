@@ -1,4 +1,10 @@
+const mockPrompt = jest.fn();
+
 module.exports = {
-  prompt: jest.fn()
+  prompt: mockPrompt,
+  default: {
+    prompt: mockPrompt
+  },
+  createPromptModule: jest.fn(() => mockPrompt)
 };
 

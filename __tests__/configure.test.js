@@ -1,7 +1,20 @@
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+// Mock os.homedir() to use a temporary directory before requiring config
+const testConfigDir = path.join(os.tmpdir(), `suiteql-cli-test-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+const testHomeDir = path.dirname(testConfigDir);
+
+jest.spyOn(os, 'homedir').mockReturnValue(testHomeDir);
+
+// Clear module cache and require modules after mocking
+delete require.cache[require.resolve('../lib/config')];
+delete require.cache[require.resolve('../lib/configure')];
+
 const { configure } = require('../lib/configure');
 const inquirer = require('inquirer');
 const { getProfile, saveProfile, profileExists, CONFIG_FILE } = require('../lib/config');
-const fs = require('fs');
 
 // Mock inquirer
 jest.mock('inquirer');
@@ -16,15 +29,6 @@ const consoleSpy = {
 const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
 
 describe('configure', () => {
-  let originalConfigContent = null;
-  const configExists = fs.existsSync(CONFIG_FILE);
-
-  beforeAll(() => {
-    // Backup original config if it exists
-    if (configExists) {
-      originalConfigContent = fs.readFileSync(CONFIG_FILE, 'utf8');
-    }
-  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -45,15 +49,14 @@ describe('configure', () => {
   });
 
   afterAll(() => {
-    // Restore original config if it existed
-    if (originalConfigContent !== null) {
-      fs.writeFileSync(CONFIG_FILE, originalConfigContent, 'utf8');
-    } else if (fs.existsSync(CONFIG_FILE)) {
-      fs.unlinkSync(CONFIG_FILE);
+    // Restore original homedir mock
+    os.homedir.mockRestore();
+    
+    // Clean up test config directory
+    if (fs.existsSync(testConfigDir)) {
+      fs.rmSync(testConfigDir, { recursive: true, force: true });
     }
-  });
-
-  afterAll(() => {
+    
     consoleSpy.log.mockRestore();
     consoleSpy.error.mockRestore();
     exitSpy.mockRestore();

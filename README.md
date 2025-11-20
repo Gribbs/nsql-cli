@@ -8,7 +8,8 @@ A command-line tool for executing SuiteQL queries against NetSuite using the `ne
 - Profile-based credential management (similar to AWS CLI)
 - Support for multiple NetSuite accounts (sandbox, production, etc.)
 - Interactive configuration setup
-- JSON output by default
+- Multiple output formats (JSON, CSV)
+- Dry-run mode to preview queries without executing
 - Edit existing profiles
 - Comprehensive help documentation
 
@@ -108,7 +109,7 @@ Profiles are stored in `~/.suiteql-cli/config.json`. The file structure looks li
 Execute a SuiteQL query using the default profile:
 
 ```bash
-suiteql-cli query --query "SELECT id, name FROM customer LIMIT 10"
+suiteql-cli query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10"
 ```
 
 ### Using a Specific Profile
@@ -116,15 +117,63 @@ suiteql-cli query --query "SELECT id, name FROM customer LIMIT 10"
 Execute a query using a named profile:
 
 ```bash
-suiteql-cli query --query "SELECT id, name FROM customer LIMIT 10" --profile prod
+suiteql-cli query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10" --profile prod
 ```
+
+### Dry-Run Mode
+
+Preview a query without executing it:
+
+```bash
+suiteql-cli query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10" --dry-run
+```
+
+This will display the query, profile, and realm information without making any API calls.
+
+### Output Formats
+
+By default, results are output as JSON. You can also output as CSV:
+
+```bash
+# JSON output (default)
+suiteql-cli query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10"
+
+# CSV output
+suiteql-cli query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10" --format csv
+```
+
+### Query Parameters
+
+You can use placeholders in your queries and pass values via CLI arguments. Placeholders use the `:name` syntax:
+
+```bash
+# Using --param option
+suiteql-cli query --query "SELECT id FROM customer WHERE id = :id" --param id=123
+
+# Using direct option (--key value)
+suiteql-cli query --query "SELECT id FROM customer WHERE id = :id" --id 123
+
+# Multiple parameters
+suiteql-cli query --query "SELECT id FROM customer WHERE id = :id AND name = :name" --id 123 --name "Test Customer"
+
+# Parameters with dry-run
+suiteql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= :limit" --param limit=10 --dry-run
+```
+
+**Parameter Types:**
+
+- **Numbers**: Automatically detected and inserted without quotes (e.g., `--id 123` → `123`)
+- **Strings**: Automatically quoted (e.g., `--name "Test"` → `'Test'`)
+- **Booleans**: Inserted without quotes (e.g., `--active true` → `true`)
+
+**Note:** NetSuite SuiteQL uses `ROWNUM` syntax instead of standard SQL `LIMIT`. Use `WHERE ROWNUM <= :limit` in your queries.
 
 ### Query Examples
 
-**Get all customers:**
+**Get customers (limited):**
 
 ```bash
-suiteql-cli query --query "SELECT id, name, email FROM customer"
+suiteql-cli query --query "SELECT id, name, email FROM customer WHERE ROWNUM <= 10"
 ```
 
 **Get transactions for a specific date range:**
@@ -148,7 +197,13 @@ suiteql-cli query --query "SELECT id, entityid, firstname, lastname, email FROM 
 **Get sales orders:**
 
 ```bash
-suiteql-cli query --query "SELECT id, tranid, trandate, total FROM transaction WHERE type = 'SalesOrd' ORDER BY trandate DESC LIMIT 50"
+suiteql-cli query --query "SELECT id, tranid, trandate, total FROM transaction WHERE type = 'SalesOrd' ORDER BY trandate DESC AND ROWNUM <= 50"
+```
+
+**Get customer by ID (using parameters):**
+
+```bash
+suiteql-cli query --query "SELECT id, name, email FROM customer WHERE id = :id" --id 123
 ```
 
 ## Command Reference
@@ -177,12 +232,34 @@ Execute a SuiteQL query.
 
 - `-q, --query <sql>` - SuiteQL query to execute (required)
 - `-p, --profile <name>` - Profile to use (defaults to "default")
+- `--dry-run` - Preview the query without executing it
+- `-f, --format <format>` - Output format: `json` or `csv` (defaults to "json")
+- `--param <key=value>` - Query parameter (can be used multiple times). Use `:key` in query as placeholder
+- `--<key> <value>` - Alternative way to pass parameters. Any unknown option is treated as a parameter
 
 **Examples:**
 
 ```bash
-suiteql-cli query --query "SELECT * FROM customer LIMIT 10"
+# Basic query with JSON output
+suiteql-cli query --query "SELECT * FROM customer WHERE ROWNUM <= 10"
+
+# Query with specific profile
 suiteql-cli query --query "SELECT id, name FROM item" --profile prod
+
+# Preview query without executing
+suiteql-cli query --query "SELECT id, name FROM customer" --dry-run
+
+# Output results as CSV
+suiteql-cli query --query "SELECT id, name, email FROM customer WHERE ROWNUM <= 10" --format csv
+
+# Query with parameters
+suiteql-cli query --query "SELECT id FROM customer WHERE id = :id" --id 123
+
+# Query with multiple parameters
+suiteql-cli query --query "SELECT id FROM customer WHERE id = :id AND name = :name" --param id=123 --param name="Test"
+
+# Combine options
+suiteql-cli query --query "SELECT id, name FROM item WHERE ROWNUM <= :limit" --profile prod --format csv --limit 50
 ```
 
 ### Help
@@ -262,9 +339,13 @@ To use this tool, you need to set up a NetSuite integration:
 
 ## Output Format
 
+The CLI supports two output formats: JSON (default) and CSV.
+
+### JSON Format
+
 By default, all query results are output as JSON with pretty-printing (2-space indentation). This makes it easy to pipe results to other tools or parse programmatically.
 
-**Example output:**
+**Example JSON output:**
 
 ```json
 {
@@ -279,6 +360,25 @@ By default, all query results are output as JSON with pretty-printing (2-space i
   "totalResults": 1
 }
 ```
+
+### CSV Format
+
+CSV format outputs only the `items` array as a CSV table with headers. Nested objects and arrays are JSON-stringified in their respective cells. This format is useful for importing data into spreadsheets or other CSV-compatible tools.
+
+**Example CSV output:**
+
+```csv
+id,name,quantity
+123,Sample Item,100
+124,Another Item,50
+```
+
+**CSV Format Notes:**
+
+- Headers are automatically generated from all keys present in the result items
+- Values containing commas, quotes, or newlines are properly escaped
+- Nested objects and arrays are JSON-stringified
+- Empty results produce an empty string
 
 ## License
 
