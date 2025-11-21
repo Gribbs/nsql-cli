@@ -1,10 +1,10 @@
 {
   "name": "nsql-cli",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "CLI tool for executing SuiteQL queries against NetSuite",
   "main": "index.js",
   "bin": {
-    "nsql": "index.js"
+    "nsql-cli": "index.js"
   },
   "scripts": {
     "test": "jest",

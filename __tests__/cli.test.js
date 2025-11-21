@@ -44,7 +44,7 @@ function createCLI() {
   const program = new Command();
 
   program
-    .name('nsql')
+    .name('nsql-cli')
     .description('CLI tool for executing SuiteQL queries against NetSuite')
     .version('1.0.0');
 

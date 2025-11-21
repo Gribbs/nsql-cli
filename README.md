@@ -16,10 +16,16 @@ A command-line tool for executing SuiteQL queries against NetSuite using the `ne
 
 ### Global Installation
 
-Install the package globally to use `nsql` from anywhere:
+Install the package globally to use `nsql-cli` from anywhere:
 
 ```bash
-npm install -g nsql
+npm install -g nsql-cli
+```
+
+After installation, you can use the `nsql-cli` command directly:
+
+```bash
+nsql-cli --help
 ```
 
 ### Local Installation
@@ -27,13 +33,13 @@ npm install -g nsql
 Install as a development dependency in your project:
 
 ```bash
-npm install --save-dev nsql
+npm install --save-dev nsql-cli
 ```
 
 Then use it via `npx`:
 
 ```bash
-npx nsql --help
+npx nsql-cli --help
 ```
 
 ## Configuration
@@ -45,7 +51,7 @@ Before executing queries, you need to configure your NetSuite account credential
 Configure the default profile:
 
 ```bash
-nsql configure
+nsql-cli configure
 ```
 
 This will prompt you for:
@@ -62,10 +68,10 @@ Create named profiles for different environments:
 
 ```bash
 # Configure a production profile
-nsql configure --profile prod
+nsql-cli configure --profile prod
 
 # Configure a sandbox profile
-nsql configure --profile sandbox
+nsql-cli configure --profile sandbox
 ```
 
 ### Editing Existing Profiles
@@ -73,7 +79,7 @@ nsql configure --profile sandbox
 To edit an existing profile, simply run configure with the profile name:
 
 ```bash
-nsql configure --profile prod
+nsql-cli configure --profile prod
 ```
 
 The tool will display the current configuration (with masked sensitive values) and allow you to update any fields.
@@ -108,7 +114,7 @@ Profiles are stored in `~/.nsql/config.json`. The file structure looks like:
 Execute a SuiteQL query using the default profile:
 
 ```bash
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 ```
 
 ### Using a Specific Profile
@@ -116,7 +122,7 @@ nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 Execute a query using a named profile:
 
 ```bash
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --profile prod
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --profile prod
 ```
 
 ### Dry-Run Mode
@@ -124,7 +130,7 @@ nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --profile prod
 Preview a query without executing it:
 
 ```bash
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --dry-run
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --dry-run
 ```
 
 This will display the query, profile, and realm information without making any API calls.
@@ -135,10 +141,10 @@ By default, results are output as JSON. You can also output as CSV:
 
 ```bash
 # JSON output (default)
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 
 # CSV output
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --format csv
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --format csv
 ```
 
 ### Query Parameters
@@ -147,16 +153,16 @@ You can use placeholders in your queries and pass values via CLI arguments. Plac
 
 ```bash
 # Using --param option
-nsql query --query "SELECT id FROM customer WHERE id = :id" --param id=123
+nsql-cli query --query "SELECT id FROM customer WHERE id = :id" --param id=123
 
 # Using direct option (--key value)
-nsql query --query "SELECT id FROM customer WHERE id = :id" --id 123
+nsql-cli query --query "SELECT id FROM customer WHERE id = :id" --id 123
 
 # Multiple parameters
-nsql query --query "SELECT id FROM customer WHERE id = :id AND entityid = :entityid" --id 123 --entityid "TEST123"
+nsql-cli query --query "SELECT id FROM customer WHERE id = :id AND entityid = :entityid" --id 123 --entityid "TEST123"
 
 # Parameters with dry-run
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= :limit" --param limit=10 --dry-run
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= :limit" --param limit=10 --dry-run
 ```
 
 **Parameter Types:**
@@ -172,37 +178,37 @@ nsql query --query "SELECT id FROM customer WHERE ROWNUM <= :limit" --param limi
 **Get customers (limited):**
 
 ```bash
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 ```
 
 **Get transactions for a specific date range:**
 
 ```bash
-nsql query --query "SELECT id, type, trandate, amount FROM transaction WHERE trandate BETWEEN '2024-01-01' AND '2024-12-31'"
+nsql-cli query --query "SELECT id, type, trandate, amount FROM transaction WHERE trandate BETWEEN '2024-01-01' AND '2024-12-31'"
 ```
 
 **Get items with inventory:**
 
 ```bash
-nsql query --query "SELECT id, itemid, displayname, quantityavailable FROM item WHERE itemtype = 'InvtPart' AND quantityavailable > 0"
+nsql-cli query --query "SELECT id, itemid, displayname, quantityavailable FROM item WHERE itemtype = 'InvtPart' AND quantityavailable > 0"
 ```
 
 **Get employees:**
 
 ```bash
-nsql query --query "SELECT id, entityid, firstname, lastname, email FROM employee WHERE isinactive = 'F'"
+nsql-cli query --query "SELECT id, entityid, firstname, lastname, email FROM employee WHERE isinactive = 'F'"
 ```
 
 **Get sales orders:**
 
 ```bash
-nsql query --query "SELECT id, tranid, trandate, total FROM transaction WHERE type = 'SalesOrd' AND ROWNUM <= 50 ORDER BY trandate DESC"
+nsql-cli query --query "SELECT id, tranid, trandate, total FROM transaction WHERE type = 'SalesOrd' AND ROWNUM <= 50 ORDER BY trandate DESC"
 ```
 
 **Get customer by ID (using parameters):**
 
 ```bash
-nsql query --query "SELECT id FROM customer WHERE id = :id" --id 123
+nsql-cli query --query "SELECT id FROM customer WHERE id = :id" --id 123
 ```
 
 ## Command Reference
@@ -218,9 +224,9 @@ Set up or edit NetSuite account credentials.
 **Examples:**
 
 ```bash
-nsql configure
-nsql configure --profile prod
-nsql configure --profile sandbox
+nsql-cli configure
+nsql-cli configure --profile prod
+nsql-cli configure --profile sandbox
 ```
 
 ### `query`
@@ -240,25 +246,25 @@ Execute a SuiteQL query.
 
 ```bash
 # Basic query with JSON output
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 
 # Query with specific profile
-nsql query --query "SELECT id FROM item WHERE ROWNUM <= 1" --profile prod
+nsql-cli query --query "SELECT id FROM item WHERE ROWNUM <= 1" --profile prod
 
 # Preview query without executing
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --dry-run
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --dry-run
 
 # Output results as CSV
-nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --format csv
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --format csv
 
 # Query with parameters
-nsql query --query "SELECT id FROM customer WHERE id = :id" --id 123
+nsql-cli query --query "SELECT id FROM customer WHERE id = :id" --id 123
 
 # Query with multiple parameters
-nsql query --query "SELECT id FROM customer WHERE id = :id AND entityid = :entityid" --param id=123 --param entityid="TEST123"
+nsql-cli query --query "SELECT id FROM customer WHERE id = :id AND entityid = :entityid" --param id=123 --param entityid="TEST123"
 
 # Combine options
-nsql query --query "SELECT id FROM item WHERE ROWNUM <= :limit" --profile prod --format csv --limit 1
+nsql-cli query --query "SELECT id FROM item WHERE ROWNUM <= :limit" --profile prod --format csv --limit 1
 ```
 
 ### Help
@@ -266,9 +272,9 @@ nsql query --query "SELECT id FROM item WHERE ROWNUM <= :limit" --profile prod -
 Get help for any command:
 
 ```bash
-nsql --help
-nsql configure --help
-nsql query --help
+nsql-cli --help
+nsql-cli configure --help
+nsql-cli query --help
 ```
 
 ## Troubleshooting
@@ -277,7 +283,7 @@ nsql query --help
 
 **Error:** `Configuration file not found.`
 
-**Solution:** Run `nsql configure` to create your first profile.
+**Solution:** Run `nsql-cli configure` to create your first profile.
 
 ### Profile Not Found
 
@@ -286,7 +292,7 @@ nsql query --help
 **Solution:**
 
 - Check available profiles by looking at `~/.nsql/config.json`
-- Create the profile using `nsql configure --profile profile-name`
+- Create the profile using `nsql-cli configure --profile profile-name`
 - Use the correct profile name (case-sensitive)
 
 ### Invalid Credentials
@@ -298,7 +304,7 @@ nsql query --help
 - Verify your credentials are correct
 - Check that your token hasn't expired
 - Ensure your NetSuite account has SuiteQL access enabled
-- Reconfigure the profile: `nsql configure --profile <profile-name>`
+- Reconfigure the profile: `nsql-cli configure --profile <profile-name>`
 
 ### Query Syntax Errors
 
