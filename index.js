@@ -7,7 +7,7 @@ const { executeQuery } = require('./lib/query');
 const program = new Command();
 
 program
-  .name('suiteql-cli')
+  .name('nsql')
   .description('CLI tool for executing SuiteQL queries against NetSuite')
   .version('1.0.0');
 
