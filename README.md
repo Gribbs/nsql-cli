@@ -108,7 +108,7 @@ Profiles are stored in `~/.nsql/config.json`. The file structure looks like:
 Execute a SuiteQL query using the default profile:
 
 ```bash
-nsql query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10"
+nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 ```
 
 ### Using a Specific Profile
@@ -116,7 +116,7 @@ nsql query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10"
 Execute a query using a named profile:
 
 ```bash
-nsql query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10" --profile prod
+nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --profile prod
 ```
 
 ### Dry-Run Mode
@@ -124,7 +124,7 @@ nsql query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10" --profile 
 Preview a query without executing it:
 
 ```bash
-nsql query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10" --dry-run
+nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --dry-run
 ```
 
 This will display the query, profile, and realm information without making any API calls.
@@ -135,10 +135,10 @@ By default, results are output as JSON. You can also output as CSV:
 
 ```bash
 # JSON output (default)
-nsql query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10"
+nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 
 # CSV output
-nsql query --query "SELECT id, name FROM customer WHERE ROWNUM <= 10" --format csv
+nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --format csv
 ```
 
 ### Query Parameters
@@ -153,7 +153,7 @@ nsql query --query "SELECT id FROM customer WHERE id = :id" --param id=123
 nsql query --query "SELECT id FROM customer WHERE id = :id" --id 123
 
 # Multiple parameters
-nsql query --query "SELECT id FROM customer WHERE id = :id AND name = :name" --id 123 --name "Test Customer"
+nsql query --query "SELECT id FROM customer WHERE id = :id AND entityid = :entityid" --id 123 --entityid "TEST123"
 
 # Parameters with dry-run
 nsql query --query "SELECT id FROM customer WHERE ROWNUM <= :limit" --param limit=10 --dry-run
@@ -172,7 +172,7 @@ nsql query --query "SELECT id FROM customer WHERE ROWNUM <= :limit" --param limi
 **Get customers (limited):**
 
 ```bash
-nsql query --query "SELECT id, name, email FROM customer WHERE ROWNUM <= 10"
+nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 ```
 
 **Get transactions for a specific date range:**
@@ -196,13 +196,13 @@ nsql query --query "SELECT id, entityid, firstname, lastname, email FROM employe
 **Get sales orders:**
 
 ```bash
-nsql query --query "SELECT id, tranid, trandate, total FROM transaction WHERE type = 'SalesOrd' ORDER BY trandate DESC AND ROWNUM <= 50"
+nsql query --query "SELECT id, tranid, trandate, total FROM transaction WHERE type = 'SalesOrd' AND ROWNUM <= 50 ORDER BY trandate DESC"
 ```
 
 **Get customer by ID (using parameters):**
 
 ```bash
-nsql query --query "SELECT id, name, email FROM customer WHERE id = :id" --id 123
+nsql query --query "SELECT id FROM customer WHERE id = :id" --id 123
 ```
 
 ## Command Reference
@@ -240,25 +240,25 @@ Execute a SuiteQL query.
 
 ```bash
 # Basic query with JSON output
-nsql query --query "SELECT * FROM customer WHERE ROWNUM <= 10"
+nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 
 # Query with specific profile
-nsql query --query "SELECT id, name FROM item" --profile prod
+nsql query --query "SELECT id FROM item WHERE ROWNUM <= 1" --profile prod
 
 # Preview query without executing
-nsql query --query "SELECT id, name FROM customer" --dry-run
+nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --dry-run
 
 # Output results as CSV
-nsql query --query "SELECT id, name, email FROM customer WHERE ROWNUM <= 10" --format csv
+nsql query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --format csv
 
 # Query with parameters
 nsql query --query "SELECT id FROM customer WHERE id = :id" --id 123
 
 # Query with multiple parameters
-nsql query --query "SELECT id FROM customer WHERE id = :id AND name = :name" --param id=123 --param name="Test"
+nsql query --query "SELECT id FROM customer WHERE id = :id AND entityid = :entityid" --param id=123 --param entityid="TEST123"
 
 # Combine options
-nsql query --query "SELECT id, name FROM item WHERE ROWNUM <= :limit" --profile prod --format csv --limit 50
+nsql query --query "SELECT id FROM item WHERE ROWNUM <= :limit" --profile prod --format csv --limit 1
 ```
 
 ### Help

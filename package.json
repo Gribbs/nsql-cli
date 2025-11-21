@@ -4,7 +4,7 @@
   "description": "CLI tool for executing SuiteQL queries against NetSuite",
   "main": "index.js",
   "bin": {
-    "nsql": "./index.js"
+    "nsql": "index.js"
   },
   "scripts": {
     "test": "jest",
@@ -16,8 +16,12 @@
     "suiteql",
     "cli"
   ],
-  "author": "",
+  "author": "Joel Gribble",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gribbs/nsql-cli.git"
+  },
   "dependencies": {
     "commander": "^11.1.0",
     "inquirer": "^9.2.12",
