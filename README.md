@@ -86,7 +86,7 @@ The tool will display the current configuration (with masked sensitive values) a
 
 ### Configuration Storage
 
-Profiles are stored in `~/.nsql/config.json`. The file structure looks like:
+Profiles are stored in `~/.nsql-cli/config.json`. The file structure looks like:
 
 ```json
 {
@@ -291,7 +291,7 @@ nsql-cli query --help
 
 **Solution:**
 
-- Check available profiles by looking at `~/.nsql/config.json`
+- Check available profiles by looking at `~/.nsql-cli/config.json`
 - Create the profile using `nsql-cli configure --profile profile-name`
 - Use the correct profile name (case-sensitive)
 
