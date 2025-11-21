@@ -170,6 +170,90 @@ describe('configure', () => {
       const logCalls = consoleSpy.log.mock.calls.map(call => call[0]).join('\n');
       expect(logCalls).toContain('****');
     });
+
+    it('should show masked values in prompt messages when editing', async () => {
+      const existingProfile = {
+        consumerKey: 'test-consumer-key-12345',
+        consumerSecret: 'test-consumer-secret-67890',
+        token: 'test-token-abcde',
+        tokenSecret: 'test-token-secret-fghij',
+        realm: 'test-realm'
+      };
+
+      saveProfile('test-profile', existingProfile);
+
+      inquirer.prompt.mockResolvedValue({
+        consumerKey: 'new-key',
+        consumerSecret: 'new-secret',
+        token: 'new-token',
+        tokenSecret: 'new-token-secret',
+        realm: 'new-realm'
+      });
+
+      await configure('test-profile');
+
+      // Check that inquirer.prompt was called with questions containing masked values
+      expect(inquirer.prompt).toHaveBeenCalled();
+      const questions = inquirer.prompt.mock.calls[0][0];
+      
+      // Verify prompt messages contain masked values in brackets
+      const consumerKeyQuestion = questions.find(q => q.name === 'consumerKey');
+      expect(consumerKeyQuestion.message).toContain('[');
+      expect(consumerKeyQuestion.message).toContain(']');
+      expect(consumerKeyQuestion.message).toMatch(/\*\*\*\*/);
+      
+      const consumerSecretQuestion = questions.find(q => q.name === 'consumerSecret');
+      expect(consumerSecretQuestion.message).toContain('[');
+      expect(consumerSecretQuestion.message).toContain(']');
+      expect(consumerSecretQuestion.message).toMatch(/\*\*\*\*/);
+      
+      const tokenQuestion = questions.find(q => q.name === 'token');
+      expect(tokenQuestion.message).toContain('[');
+      expect(tokenQuestion.message).toContain(']');
+      expect(tokenQuestion.message).toMatch(/\*\*\*\*/);
+      
+      const tokenSecretQuestion = questions.find(q => q.name === 'tokenSecret');
+      expect(tokenSecretQuestion.message).toContain('[');
+      expect(tokenSecretQuestion.message).toContain(']');
+      expect(tokenSecretQuestion.message).toMatch(/\*\*\*\*/);
+      
+      // Realm should show full value (not masked)
+      const realmQuestion = questions.find(q => q.name === 'realm');
+      expect(realmQuestion.message).toContain('[test-realm]');
+    });
+
+    it('should preserve existing values when empty input is provided', async () => {
+      const existingProfile = {
+        consumerKey: 'existing-key',
+        consumerSecret: 'existing-secret',
+        token: 'existing-token',
+        tokenSecret: 'existing-token-secret',
+        realm: 'existing-realm'
+      };
+
+      saveProfile('test-profile', existingProfile);
+
+      // Mock empty input (simulating pressing Enter)
+      inquirer.prompt.mockResolvedValue({
+        consumerKey: '',
+        consumerSecret: '',
+        token: '',
+        tokenSecret: '',
+        realm: ''
+      });
+
+      await configure('test-profile');
+
+      // Verify that existing values were preserved
+      const profile = getProfile('test-profile');
+      expect(profile).toEqual({
+        consumerKey: 'existing-key',
+        consumerSecret: 'existing-secret',
+        token: 'existing-token',
+        tokenSecret: 'existing-token-secret',
+        realm: 'existing-realm'
+      });
+    });
   });
 
   describe('error handling', () => {
