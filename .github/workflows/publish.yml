@@ -40,6 +40,7 @@ jobs:
       - name: Verify npm authentication
         run: |
           echo "Checking npm authentication..."
+          echo "Token starts with: ${NPM_TOKEN:0:4}..."
           npm whoami --registry=https://registry.npmjs.org || echo "npm whoami failed - check token"
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -58,6 +59,12 @@ jobs:
         with:
           name: test-output-release
           path: test-output.log
+
+      - name: Configure npm for semantic-release
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+          echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+          npm whoami --registry=https://registry.npmjs.org
 
       - name: Release
         run: npx semantic-release
