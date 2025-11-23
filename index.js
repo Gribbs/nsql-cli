@@ -5,13 +5,14 @@ const { configure } = require('./lib/configure');
 const { executeQuery } = require('./lib/query');
 const fs = require('fs');
 const path = require('path');
+const { version } = require('./package.json');
 
 const program = new Command();
 
 program
   .name('nsql-cli')
   .description('CLI tool for executing SuiteQL queries against NetSuite')
-  .version('1.0.0');
+  .version(version);
 
 program
   .command('configure')

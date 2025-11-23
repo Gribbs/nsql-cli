@@ -15,6 +15,7 @@ delete require.cache[require.resolve('../lib/query')];
 
 const { saveProfile, CONFIG_FILE } = require('../lib/config');
 const { NetsuiteApiClient } = require('netsuite-api-client');
+const { version } = require('../package.json');
 
 // Mock netsuite-api-client
 jest.mock('netsuite-api-client');
@@ -46,7 +47,7 @@ function createCLI() {
   program
     .name('nsql-cli')
     .description('CLI tool for executing SuiteQL queries against NetSuite')
-    .version('1.0.0');
+    .version(version);
 
   program
     .command('configure')
@@ -335,15 +336,15 @@ describe('CLI', () => {
     it('should display version for --version flag', () => {
       const program = createCLI();
       // Commander outputs version via console.log, test version() method
-      program.version('1.0.0');
+      program.version(version);
       // Test that version is set correctly
-      expect(program._version).toBe('1.0.0');
+      expect(program._version).toBe(version);
     });
 
     it('should display version for -V flag', () => {
       const program = createCLI();
-      program.version('1.0.0');
-      expect(program._version).toBe('1.0.0');
+      program.version(version);
+      expect(program._version).toBe(version);
     });
   });
 
