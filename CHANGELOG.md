@@ -1,3 +1,20 @@
+# [3.2.0](https://github.com/Gribbs/nsql-cli/compare/v3.1.0...v3.2.0) (2025-11-23)
+
+
+### Bug Fixes
+
+* add test isolation fixes for Release workflow ([546bd74](https://github.com/Gribbs/nsql-cli/commit/546bd74fd92b700ef701c9a8b9ce50f95dbc821e))
+
+
+### Features
+
+* add automated npm publishing and file input support ([9ef9c39](https://github.com/Gribbs/nsql-cli/commit/9ef9c39c5b50531f15a1fe097041b26a57866b07))
+
+
+### Reverts
+
+* keep granular token approach for npm authentication ([1f0089f](https://github.com/Gribbs/nsql-cli/commit/1f0089fce51b8d9a50f9f96a2e0524075869a519))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
