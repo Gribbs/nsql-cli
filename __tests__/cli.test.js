@@ -242,9 +242,19 @@ describe('CLI', () => {
   });
 
   afterEach(() => {
-    // Clean up config file
+    // Clean up config file and ensure directory is clean
+    const configDir = path.dirname(CONFIG_FILE);
     if (fs.existsSync(CONFIG_FILE)) {
       fs.unlinkSync(CONFIG_FILE);
+    }
+    // Also clear any module cache that might have stale config
+    delete require.cache[require.resolve('../lib/config')];
+    delete require.cache[require.resolve('../lib/query')];
+    
+    // Reset mocks
+    jest.clearAllMocks();
+    if (NetsuiteApiClient.mock) {
+      NetsuiteApiClient.mockClear();
     }
   });
 
