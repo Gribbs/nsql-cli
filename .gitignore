@@ -33,3 +33,7 @@ logs/
 # Temporary files
 *.tmp
 .cache/
+
+# PR helper files
+*_pr_body.md
+pr_body.md

@@ -37,11 +37,34 @@ describe('query', () => {
     consoleSpy.error.mockClear();
     exitSpy.mockClear();
 
+    // Ensure config directory exists and is clean
+    const configDir = path.dirname(CONFIG_FILE);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    if (fs.existsSync(CONFIG_FILE)) {
+      fs.unlinkSync(CONFIG_FILE);
+    }
+    
+    // Clear module cache to ensure fresh state
+    delete require.cache[require.resolve('../lib/config')];
+    delete require.cache[require.resolve('../lib/query')];
+
     // Create mock client instance
     mockClient = {
       query: jest.fn()
     };
     NetsuiteApiClient.mockImplementation(() => mockClient);
+  });
+
+  afterEach(() => {
+    // Clean up config file after each test
+    if (fs.existsSync(CONFIG_FILE)) {
+      fs.unlinkSync(CONFIG_FILE);
+    }
+    // Clear module cache
+    delete require.cache[require.resolve('../lib/config')];
+    delete require.cache[require.resolve('../lib/query')];
   });
 
   afterAll(() => {
