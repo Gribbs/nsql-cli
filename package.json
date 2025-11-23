@@ -9,7 +9,8 @@
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "commitlint": "commitlint --edit"
   },
   "keywords": [
     "netsuite",
@@ -28,6 +29,13 @@
     "netsuite-api-client": "^1.0.0"
   },
   "devDependencies": {
-    "jest": "^30.2.0"
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.0",
+    "@semantic-release/npm": "^12.0.2",
+    "jest": "^30.2.0",
+    "semantic-release": "^24.0.0"
   }
 }

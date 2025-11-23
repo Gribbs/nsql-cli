@@ -1,0 +1,87 @@
+# Cursor Rules for nsql-cli
+
+## Commit Message Format
+
+**ALWAYS use Conventional Commits format for all commit messages in this repository.**
+
+### Required Format
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+### Commit Types
+
+Use one of these types:
+
+- `feat`: New feature (triggers minor version bump)
+- `fix`: Bug fix (triggers patch version bump)
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Adding or updating tests
+- `build`: Build system changes
+- `ci`: CI configuration changes
+- `chore`: Other changes
+
+### Breaking Changes
+
+For major version bumps, use:
+
+- `feat!:` or `fix!:` or `refactor!:` etc. (with exclamation mark)
+- Include `BREAKING CHANGE:` in the footer
+
+### Examples
+
+✅ **Good:**
+
+- `feat: add support for custom query parameters`
+- `fix: resolve authentication timeout issue`
+- `docs: update installation instructions`
+- `feat!: change default output format`
+
+❌ **Bad:**
+
+- `Update code`
+- `Fixed bug`
+- `WIP: working on feature`
+- `Add new stuff`
+
+### When Creating Commits
+
+1. **Always** use the conventional commit format
+2. **Always** validate the commit message before committing
+3. If the user asks for a commit without specifying format, **remind them** to use conventional commits
+4. **Never** create commits with messages like "update", "fix", "changes" without proper type prefix
+
+### Validation
+
+Before committing, validate the message:
+
+```bash
+echo "your commit message" | npx commitlint
+```
+
+Or use:
+
+```bash
+npm run commitlint
+```
+
+## Code Style
+
+- Follow existing code patterns
+- Use meaningful variable names
+- Add comments for complex logic
+- Keep functions focused
+
+## Testing
+
+- Always run tests before committing: `npm test`
+- New features must include tests
+- Ensure all tests pass before creating PRs

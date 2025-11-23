@@ -439,4 +439,12 @@ See [CHANGELOG.md](CHANGELOG.md) for a list of changes and version history.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+
+- Development setup
+- Commit message format (Conventional Commits)
+- Pull request process
+- Testing requirements
+- Release process
+
+Please ensure all commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/) format, as this project uses semantic versioning and automated releases.
