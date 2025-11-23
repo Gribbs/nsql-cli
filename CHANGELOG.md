@@ -1,3 +1,15 @@
+## [3.2.1](https://github.com/Gribbs/nsql-cli/compare/v3.2.0...v3.2.1) (2025-11-23)
+
+
+### Bug Fixes
+
+* configure git remote URL with PAT for semantic-release ([796cc24](https://github.com/Gribbs/nsql-cli/commit/796cc241d11fc74af718f74cfab15bdf7bf599ca))
+
+
+### Reverts
+
+* remove PAT configuration, use GITHUB_TOKEN directly ([61bdcdd](https://github.com/Gribbs/nsql-cli/commit/61bdcddd2e9cc5a647a392c4d904526b330dc14c))
+
 # [3.2.0](https://github.com/Gribbs/nsql-cli/compare/v3.1.0...v3.2.0) (2025-11-23)
 
 
