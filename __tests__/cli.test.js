@@ -707,22 +707,20 @@ describe('CLI', () => {
   describe('query command - --cli-input-suiteql option', () => {
     it('should read query from file with relative path', async () => {
       // Create a temporary test file in a subdirectory
-      const testDir = path.join(os.tmpdir(), `test-queries-${Date.now()}`);
+      const testDir = path.join(os.tmpdir(), `test-queries-${Date.now()}-${Math.random().toString(36).substring(7)}`);
       fs.mkdirSync(testDir, { recursive: true });
       const testFile = path.join(testDir, 'test.sql');
       fs.writeFileSync(testFile, 'SELECT id FROM customer WHERE ROWNUM <= 1');
 
-      // Change to the test directory so relative path works
-      const originalCwd = process.cwd();
-      process.chdir(testDir);
-
+      // Use absolute path instead of changing directory to avoid CI issues
+      const absoluteTestFile = path.resolve(testFile);
+      
       try {
-        await runCLI(['query', '--cli-input-suiteql', 'file://./test.sql']);
+        await runCLI(['query', '--cli-input-suiteql', `file://${absoluteTestFile}`]);
 
         const mockClient = NetsuiteApiClient.mock.results[0].value;
         expect(mockClient.query).toHaveBeenCalledWith('SELECT id FROM customer WHERE ROWNUM <= 1');
       } finally {
-        process.chdir(originalCwd);
         if (fs.existsSync(testDir)) {
           fs.rmSync(testDir, { recursive: true, force: true });
         }
