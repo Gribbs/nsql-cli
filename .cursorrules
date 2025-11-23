@@ -52,12 +52,21 @@ For major version bumps, use:
 - `WIP: working on feature`
 - `Add new stuff`
 
+### Line Length Rules
+
+- **Subject line**: Maximum 72 characters (recommended, not enforced by commitlint)
+- **Body lines**: Maximum 100 characters per line (enforced by commitlint)
+- Break long lines in the body to stay under 100 characters
+- Use multiple lines for long descriptions
+
 ### When Creating Commits
 
 1. **Always** use the conventional commit format
-2. **Always** validate the commit message before committing
-3. If the user asks for a commit without specifying format, **remind them** to use conventional commits
-4. **Never** create commits with messages like "update", "fix", "changes" without proper type prefix
+2. **Always** check that body lines are under 100 characters
+3. **Always** validate the commit message before committing using commitlint
+4. If the user asks for a commit without specifying format, **remind them** to use conventional commits
+5. **Never** create commits with messages like "update", "fix", "changes" without proper type prefix
+6. **Never** create commit messages with body lines longer than 100 characters
 
 ### Validation
 
@@ -72,6 +81,8 @@ Or use:
 ```bash
 npm run commitlint
 ```
+
+**Important**: commitlint will fail if any body line exceeds 100 characters. Always break long lines into multiple lines.
 
 ## Code Style
 
