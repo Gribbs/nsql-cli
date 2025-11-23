@@ -1,3 +1,10 @@
+## [3.2.2](https://github.com/Gribbs/nsql-cli/compare/v3.2.1...v3.2.2) (2025-11-23)
+
+
+### Bug Fixes
+
+* **cli:** read version from package.json instead of hardcoding ([7ba2dc4](https://github.com/Gribbs/nsql-cli/commit/7ba2dc45ba60d357b95e8574bc2cf2e7f240f84f))
+
 ## [3.2.1](https://github.com/Gribbs/nsql-cli/compare/v3.2.0...v3.2.1) (2025-11-23)
 
 
