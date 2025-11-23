@@ -77,6 +77,12 @@ jobs:
           echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
           npm whoami --registry=https://registry.npmjs.org
 
+      - name: Configure git credentials for semantic-release
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
       - name: Release
         run: npx semantic-release
         env:
