@@ -37,6 +37,14 @@ jobs:
           node --version
           npm --version
 
+      - name: Verify npm authentication
+        run: |
+          echo "Checking npm authentication..."
+          npm whoami --registry=https://registry.npmjs.org || echo "npm whoami failed"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
+
       - name: Run tests
         run: npm test -- --runInBand 2>&1 | tee test-output.log
         env:
