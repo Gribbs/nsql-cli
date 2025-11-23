@@ -59,7 +59,8 @@ function createCLI() {
   const queryCommand = program
     .command('query')
     .description('Execute a SuiteQL query')
-    .requiredOption('-q, --query <sql>', 'SuiteQL query to execute')
+    .option('-q, --query <sql>', 'SuiteQL query to execute')
+    .option('--cli-input-suiteql <file>', 'Read SuiteQL query from file (use file:// prefix for file path)')
     .option('-p, --profile <name>', 'Profile to use (defaults to "default")', 'default')
     .option('--dry-run', 'Preview the query without executing it')
     .option('-f, --format <format>', 'Output format: json or csv (defaults to "json")', 'json')
@@ -73,13 +74,63 @@ function createCLI() {
     }, {})
     .allowUnknownOption()
     .action(async (options) => {
+      // Validate that either --query or --cli-input-suiteql is provided, but not both
+      if (!options.query && !options.cliInputSuiteql) {
+        console.error('Error: Either --query or --cli-input-suiteql must be provided.');
+        console.error('See --help for usage information.');
+        process.exit(1);
+        return; // Prevent execution when process.exit is mocked in tests
+      }
+
+      if (options.query && options.cliInputSuiteql) {
+        console.error('Error: --query and --cli-input-suiteql cannot be used together.');
+        console.error('Please use only one method to provide the query.');
+        process.exit(1);
+        return; // Prevent execution when process.exit is mocked in tests
+      }
+
+      // Determine the query source
+      let query;
+      if (options.cliInputSuiteql) {
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Remove file:// prefix if present
+          let actualPath = options.cliInputSuiteql;
+          if (actualPath.startsWith('file://')) {
+            actualPath = actualPath.substring(7);
+          }
+
+          // Resolve the path (handles both relative and absolute paths)
+          const resolvedPath = path.isAbsolute(actualPath) 
+            ? actualPath 
+            : path.resolve(process.cwd(), actualPath);
+
+          // Check if file exists
+          if (!fs.existsSync(resolvedPath)) {
+            throw new Error(`File not found: ${resolvedPath}`);
+          }
+
+          // Read and return file content, trimming whitespace
+          query = fs.readFileSync(resolvedPath, 'utf8').trim();
+        } catch (error) {
+          console.error(`Error reading query file: ${error.message}`);
+          process.exit(1);
+          return; // Prevent execution when process.exit is mocked in tests
+        }
+      } else {
+        query = options.query;
+      }
+      
       // Collect parameters from --param options
       const params = { ...options.param };
       
       // Parse unknown options from raw argv
       const args = process.argv.slice(2);
       const queryIndex = args.findIndex(arg => arg === '-q' || arg === '--query');
-      const queryValueIndex = queryIndex >= 0 ? queryIndex + 1 : -1;
+      const fileInputIndex = args.findIndex(arg => arg === '--cli-input-suiteql');
+      const queryValueIndex = queryIndex >= 0 ? queryIndex + 1 : (fileInputIndex >= 0 ? fileInputIndex + 1 : -1);
       
       // Parse arguments after the query value
       let i = queryValueIndex + 1;
@@ -103,6 +154,10 @@ function createCLI() {
           i += 1;
           continue;
         }
+        if (arg === '--cli-input-suiteql') {
+          i += 2;
+          continue;
+        }
         
         // If it's an option (starts with --), treat it as a parameter
         if (arg.startsWith('--') && arg.length > 2) {
@@ -121,7 +176,7 @@ function createCLI() {
         }
       }
       
-      await executeQuery(options.query, options.profile, options.dryRun, options.format, params);
+      await executeQuery(query, options.profile, options.dryRun, options.format, params);
     });
 
   // Handle unknown commands
@@ -622,6 +677,171 @@ describe('CLI', () => {
       
       // Should either show error or help
       expect(errorThrown || consoleSpy.error.mock.calls.length > 0 || consoleSpy.log.mock.calls.length > 0).toBeTruthy();
+    });
+
+    it('should handle error when both --query and --cli-input-suiteql are provided', async () => {
+      // Create a temporary test file
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      fs.writeFileSync(testFile, 'SELECT * FROM test');
+
+      try {
+        await runCLI(['query', '--query', 'SELECT * FROM customer', '--cli-input-suiteql', `file://${testFile}`]);
+
+        expect(consoleSpy.error).toHaveBeenCalledWith('Error: --query and --cli-input-suiteql cannot be used together.');
+        expect(exitSpy).toHaveBeenCalledWith(1);
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
+    it('should handle error when neither --query nor --cli-input-suiteql is provided', async () => {
+      await runCLI(['query']);
+
+      expect(consoleSpy.error).toHaveBeenCalledWith('Error: Either --query or --cli-input-suiteql must be provided.');
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('query command - --cli-input-suiteql option', () => {
+    it('should read query from file with relative path', async () => {
+      // Create a temporary test file in a subdirectory
+      const testDir = path.join(os.tmpdir(), `test-queries-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+      fs.mkdirSync(testDir, { recursive: true });
+      const testFile = path.join(testDir, 'test.sql');
+      fs.writeFileSync(testFile, 'SELECT id FROM customer WHERE ROWNUM <= 1');
+
+      // Use absolute path instead of changing directory to avoid CI issues
+      const absoluteTestFile = path.resolve(testFile);
+      
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${absoluteTestFile}`]);
+
+        const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient.query).toHaveBeenCalledWith('SELECT id FROM customer WHERE ROWNUM <= 1');
+      } finally {
+        if (fs.existsSync(testDir)) {
+          fs.rmSync(testDir, { recursive: true, force: true });
+        }
+      }
+    });
+
+    it('should read query from file with absolute path', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      fs.writeFileSync(testFile, 'SELECT id FROM item WHERE ROWNUM <= 1');
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`]);
+
+        const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient.query).toHaveBeenCalledWith('SELECT id FROM item WHERE ROWNUM <= 1');
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
+    it('should read query from file without file:// prefix', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      fs.writeFileSync(testFile, 'SELECT id FROM transaction WHERE ROWNUM <= 1');
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', testFile]);
+
+        const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient.query).toHaveBeenCalledWith('SELECT id FROM transaction WHERE ROWNUM <= 1');
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
+    it('should handle error when file does not exist', async () => {
+      const nonExistentFile = path.join(os.tmpdir(), `nonexistent-${Date.now()}.sql`);
+
+      await runCLI(['query', '--cli-input-suiteql', `file://${nonExistentFile}`]);
+
+      expect(consoleSpy.error).toHaveBeenCalledWith(expect.stringContaining('Error reading query file'));
+      expect(consoleSpy.error).toHaveBeenCalledWith(expect.stringContaining('File not found'));
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('should work with file input and parameters', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      fs.writeFileSync(testFile, 'SELECT id FROM customer WHERE id = :id');
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`, '--id', '123']);
+
+        const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient.query).toHaveBeenCalledWith("SELECT id FROM customer WHERE id = 123");
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
+    it('should work with file input and dry-run', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      fs.writeFileSync(testFile, 'SELECT id FROM customer WHERE ROWNUM <= 1');
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`, '--dry-run']);
+
+        expect(consoleSpy.log).toHaveBeenCalledWith('Dry-run mode: Query will not be executed');
+        expect(consoleSpy.log).toHaveBeenCalledWith('Query:', 'SELECT id FROM customer WHERE ROWNUM <= 1');
+        expect(NetsuiteApiClient).not.toHaveBeenCalled();
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
+    it('should work with file input and CSV format', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      fs.writeFileSync(testFile, 'SELECT id, name FROM customer WHERE ROWNUM <= 1');
+
+      const mockClient = {
+        query: jest.fn().mockResolvedValue({
+          items: [{ id: '1', name: 'Test' }],
+          hasMore: false
+        })
+      };
+      NetsuiteApiClient.mockImplementation(() => mockClient);
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`, '--format', 'csv']);
+
+        expect(mockClient.query).toHaveBeenCalledWith('SELECT id, name FROM customer WHERE ROWNUM <= 1');
+        const csvOutput = consoleSpy.log.mock.calls[0][0];
+        expect(csvOutput).toContain('id,name');
+        expect(csvOutput).toContain('1,Test');
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
+    it('should trim whitespace from file content', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      fs.writeFileSync(testFile, '  SELECT id FROM customer  \n\n');
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`]);
+
+        const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient.query).toHaveBeenCalledWith('SELECT id FROM customer');
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
     });
   });
 });
