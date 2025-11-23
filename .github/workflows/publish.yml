@@ -12,6 +12,8 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      pull-requests: write
+      issues: write
 
     steps:
       - name: Checkout code
@@ -60,6 +62,14 @@ jobs:
           name: test-output-release
           path: test-output.log
 
+      - name: Check GITHUB_TOKEN permissions
+        run: |
+          echo "Checking GITHUB_TOKEN permissions..."
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }} | jq '{permissions, owner: .owner.login}'
+        continue-on-error: true
+
       - name: Configure npm for semantic-release
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
@@ -69,5 +79,5 @@ jobs:
       - name: Release
         run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
