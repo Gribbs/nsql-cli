@@ -18,15 +18,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate commit messages
+        if: github.event_name == 'pull_request'
+        run: |
+          # Validate all commit messages in the PR
+          git log origin/${{ github.base_ref }}..HEAD --format="%H %s" | while read -r hash subject; do
+            echo "Validating commit: $subject"
+            git log -1 --format="%B" "$hash" | npx commitlint || exit 1
+          done
 
       - name: Verify Node.js and npm versions
         run: |
