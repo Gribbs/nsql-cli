@@ -41,6 +41,8 @@ describe('config', () => {
     if (fs.existsSync(CONFIG_FILE)) {
       fs.unlinkSync(CONFIG_FILE);
     }
+    // Clear module cache to ensure fresh config state
+    delete require.cache[require.resolve('../lib/config')];
   });
 
   afterAll(() => {
@@ -261,6 +263,12 @@ describe('config', () => {
     });
 
     it('should return all profile names', () => {
+      // Ensure clean state - delete config file first
+      if (fs.existsSync(CONFIG_FILE)) {
+        fs.unlinkSync(CONFIG_FILE);
+      }
+      delete require.cache[require.resolve('../lib/config')];
+      
       saveProfile('profile1', {
         consumerKey: 'key1',
         consumerSecret: 'secret1',

@@ -242,9 +242,19 @@ describe('CLI', () => {
   });
 
   afterEach(() => {
-    // Clean up config file
+    // Clean up config file and ensure directory is clean
+    const configDir = path.dirname(CONFIG_FILE);
     if (fs.existsSync(CONFIG_FILE)) {
       fs.unlinkSync(CONFIG_FILE);
+    }
+    // Also clear any module cache that might have stale config
+    delete require.cache[require.resolve('../lib/config')];
+    delete require.cache[require.resolve('../lib/query')];
+    
+    // Reset mocks
+    jest.clearAllMocks();
+    if (NetsuiteApiClient.mock) {
+      NetsuiteApiClient.mockClear();
     }
   });
 
@@ -776,7 +786,10 @@ describe('CLI', () => {
       try {
         await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`, '--id', '123']);
 
+        expect(NetsuiteApiClient).toHaveBeenCalled();
+        expect(NetsuiteApiClient.mock.results.length).toBeGreaterThan(0);
         const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient).toBeDefined();
         expect(mockClient.query).toHaveBeenCalledWith("SELECT id FROM customer WHERE id = 123");
       } finally {
         if (fs.existsSync(testFile)) {
