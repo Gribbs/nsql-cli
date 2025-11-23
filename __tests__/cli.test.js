@@ -776,7 +776,10 @@ describe('CLI', () => {
       try {
         await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`, '--id', '123']);
 
+        expect(NetsuiteApiClient).toHaveBeenCalled();
+        expect(NetsuiteApiClient.mock.results.length).toBeGreaterThan(0);
         const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient).toBeDefined();
         expect(mockClient.query).toHaveBeenCalledWith("SELECT id FROM customer WHERE id = 123");
       } finally {
         if (fs.existsSync(testFile)) {
