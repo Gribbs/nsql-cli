@@ -35,7 +35,7 @@ jobs:
           npm --version
 
       - name: Run tests
-        run: npm test 2>&1 | tee test-output.log
+        run: npm test -- --runInBand 2>&1 | tee test-output.log
         env:
           CI: true
         continue-on-error: false
