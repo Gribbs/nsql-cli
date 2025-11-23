@@ -5,6 +5,7 @@ A command-line tool for executing SuiteQL queries against NetSuite using the `ne
 ## Features
 
 - Execute SuiteQL queries from the command line
+- Read queries from SQL files using `--cli-input-suiteql`
 - Profile-based credential management
 - Support for multiple NetSuite accounts (sandbox, production, etc.)
 - Interactive configuration setup
@@ -117,6 +118,23 @@ Execute a SuiteQL query using the default profile:
 nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 ```
 
+### Execute a Query from a File
+
+You can also read queries from SQL files using the `--cli-input-suiteql` option with a `file://` prefix:
+
+```bash
+# Read query from a relative file path
+nsql-cli query --cli-input-suiteql file://./queries/customers.sql
+
+# Read query from an absolute file path
+nsql-cli query --cli-input-suiteql file:///Users/name/queries/customers.sql
+
+# The file:// prefix is optional
+nsql-cli query --cli-input-suiteql ./queries/customers.sql
+```
+
+**Note:** The `--query` and `--cli-input-suiteql` options are mutually exclusive. You must use one or the other, but not both.
+
 ### Using a Specific Profile
 
 Execute a query using a named profile:
@@ -211,6 +229,19 @@ nsql-cli query --query "SELECT id, tranid, trandate, total FROM transaction WHER
 nsql-cli query --query "SELECT id FROM customer WHERE id = :id" --id 123
 ```
 
+**Execute query from a file:**
+
+```bash
+# Create a file with your query
+echo "SELECT id FROM customer WHERE ROWNUM <= 10" > query.sql
+
+# Execute it
+nsql-cli query --cli-input-suiteql file://./query.sql
+
+# With parameters
+nsql-cli query --cli-input-suiteql file://./query.sql --id 123
+```
+
 ## Command Reference
 
 ### `configure`
@@ -235,7 +266,8 @@ Execute a SuiteQL query.
 
 **Options:**
 
-- `-q, --query <sql>` - SuiteQL query to execute (required)
+- `-q, --query <sql>` - SuiteQL query to execute (required if `--cli-input-suiteql` is not provided)
+- `--cli-input-suiteql <file>` - Read SuiteQL query from file (use `file://` prefix for file path). Mutually exclusive with `--query`
 - `-p, --profile <name>` - Profile to use (defaults to "default")
 - `--dry-run` - Preview the query without executing it
 - `-f, --format <format>` - Output format: `json` or `csv` (defaults to "json")
@@ -265,6 +297,18 @@ nsql-cli query --query "SELECT id FROM customer WHERE id = :id AND entityid = :e
 
 # Combine options
 nsql-cli query --query "SELECT id FROM item WHERE ROWNUM <= :limit" --profile prod --format csv --limit 1
+
+# Execute query from file
+nsql-cli query --cli-input-suiteql file://./queries/customers.sql
+
+# Execute query from file with parameters
+nsql-cli query --cli-input-suiteql file://./queries/customers.sql --id 123
+
+# Execute query from file with dry-run
+nsql-cli query --cli-input-suiteql file://./queries/customers.sql --dry-run
+
+# Execute query from file with CSV output
+nsql-cli query --cli-input-suiteql file://./queries/customers.sql --format csv
 ```
 
 ### Help
@@ -388,6 +432,10 @@ id,name,quantity
 ## License
 
 ISC
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a list of changes and version history.
 
 ## Contributing
 
