@@ -40,8 +40,10 @@ jobs:
       - name: Verify npm authentication
         run: |
           echo "Checking npm authentication..."
-          npm whoami --registry=https://registry.npmjs.org || echo "npm whoami failed"
+          echo "Token starts with: ${NPM_TOKEN:0:4}..."
+          npm whoami --registry=https://registry.npmjs.org || echo "npm whoami failed - check token"
         env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         continue-on-error: true
 
