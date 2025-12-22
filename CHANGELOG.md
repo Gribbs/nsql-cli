@@ -1,3 +1,10 @@
+# [3.3.0](https://github.com/Gribbs/nsql-cli/compare/v3.2.2...v3.3.0) (2025-12-22)
+
+
+### Features
+
+* add environment variable authentication ([16cedd0](https://github.com/Gribbs/nsql-cli/commit/16cedd04e970c38ec025aeec4941d9a6d269e3e4))
+
 ## [3.2.2](https://github.com/Gribbs/nsql-cli/compare/v3.2.1...v3.2.2) (2025-11-23)
 
 
