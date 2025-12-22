@@ -18,6 +18,8 @@ const {
   profileExists,
   getAllProfiles,
   validateProfile,
+  getEnvCredentials,
+  resolveCredentials,
   CONFIG_FILE
 } = require('../lib/config');
 
@@ -351,6 +353,173 @@ describe('config', () => {
       };
       
       expect(validateProfile(invalidProfile)).toBe(false);
+    });
+  });
+
+  describe('getEnvCredentials', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      // Reset environment variables before each test
+      process.env = { ...originalEnv };
+      delete process.env.NSQL_CONSUMER_KEY;
+      delete process.env.NSQL_CONSUMER_SECRET;
+      delete process.env.NSQL_TOKEN;
+      delete process.env.NSQL_TOKEN_SECRET;
+      delete process.env.NSQL_REALM;
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+    });
+
+    it('should return null when no environment variables are set', () => {
+      const credentials = getEnvCredentials();
+      expect(credentials).toBeNull();
+    });
+
+    it('should return null when only some environment variables are set', () => {
+      process.env.NSQL_CONSUMER_KEY = 'test-key';
+      process.env.NSQL_CONSUMER_SECRET = 'test-secret';
+      // Missing NSQL_TOKEN, NSQL_TOKEN_SECRET, NSQL_REALM
+      
+      const credentials = getEnvCredentials();
+      expect(credentials).toBeNull();
+    });
+
+    it('should return null when any environment variable is empty string', () => {
+      process.env.NSQL_CONSUMER_KEY = 'test-key';
+      process.env.NSQL_CONSUMER_SECRET = 'test-secret';
+      process.env.NSQL_TOKEN = 'test-token';
+      process.env.NSQL_TOKEN_SECRET = 'test-token-secret';
+      process.env.NSQL_REALM = ''; // Empty string
+      
+      const credentials = getEnvCredentials();
+      expect(credentials).toBeNull();
+    });
+
+    it('should return credentials when all environment variables are set', () => {
+      process.env.NSQL_CONSUMER_KEY = 'env-consumer-key';
+      process.env.NSQL_CONSUMER_SECRET = 'env-consumer-secret';
+      process.env.NSQL_TOKEN = 'env-token';
+      process.env.NSQL_TOKEN_SECRET = 'env-token-secret';
+      process.env.NSQL_REALM = 'env-realm';
+      
+      const credentials = getEnvCredentials();
+      expect(credentials).toEqual({
+        consumerKey: 'env-consumer-key',
+        consumerSecret: 'env-consumer-secret',
+        token: 'env-token',
+        tokenSecret: 'env-token-secret',
+        realm: 'env-realm'
+      });
+    });
+  });
+
+  describe('resolveCredentials', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      // Reset environment variables before each test
+      process.env = { ...originalEnv };
+      delete process.env.NSQL_CONSUMER_KEY;
+      delete process.env.NSQL_CONSUMER_SECRET;
+      delete process.env.NSQL_TOKEN;
+      delete process.env.NSQL_TOKEN_SECRET;
+      delete process.env.NSQL_REALM;
+      
+      // Clean up config file
+      if (fs.existsSync(CONFIG_FILE)) {
+        fs.unlinkSync(CONFIG_FILE);
+      }
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+    });
+
+    it('should return null credentials when neither env vars nor profile exist', () => {
+      const result = resolveCredentials('default');
+      expect(result.credentials).toBeNull();
+      expect(result.source).toBeNull();
+    });
+
+    it('should return profile credentials when env vars are not set', () => {
+      const profileData = {
+        consumerKey: 'profile-key',
+        consumerSecret: 'profile-secret',
+        token: 'profile-token',
+        tokenSecret: 'profile-token-secret',
+        realm: 'profile-realm'
+      };
+      saveProfile('default', profileData);
+      
+      const result = resolveCredentials('default');
+      expect(result.credentials).toEqual(profileData);
+      expect(result.source).toBe('profile');
+    });
+
+    it('should return env credentials when all env vars are set (precedence over profile)', () => {
+      // Set up both profile and environment variables
+      const profileData = {
+        consumerKey: 'profile-key',
+        consumerSecret: 'profile-secret',
+        token: 'profile-token',
+        tokenSecret: 'profile-token-secret',
+        realm: 'profile-realm'
+      };
+      saveProfile('default', profileData);
+      
+      process.env.NSQL_CONSUMER_KEY = 'env-consumer-key';
+      process.env.NSQL_CONSUMER_SECRET = 'env-consumer-secret';
+      process.env.NSQL_TOKEN = 'env-token';
+      process.env.NSQL_TOKEN_SECRET = 'env-token-secret';
+      process.env.NSQL_REALM = 'env-realm';
+      
+      const result = resolveCredentials('default');
+      expect(result.credentials).toEqual({
+        consumerKey: 'env-consumer-key',
+        consumerSecret: 'env-consumer-secret',
+        token: 'env-token',
+        tokenSecret: 'env-token-secret',
+        realm: 'env-realm'
+      });
+      expect(result.source).toBe('environment');
+    });
+
+    it('should fall back to profile when env vars are incomplete', () => {
+      const profileData = {
+        consumerKey: 'profile-key',
+        consumerSecret: 'profile-secret',
+        token: 'profile-token',
+        tokenSecret: 'profile-token-secret',
+        realm: 'profile-realm'
+      };
+      saveProfile('default', profileData);
+      
+      // Set only some env vars
+      process.env.NSQL_CONSUMER_KEY = 'env-consumer-key';
+      process.env.NSQL_CONSUMER_SECRET = 'env-consumer-secret';
+      // Missing other env vars
+      
+      const result = resolveCredentials('default');
+      expect(result.credentials).toEqual(profileData);
+      expect(result.source).toBe('profile');
+    });
+
+    it('should use specified profile name', () => {
+      const productionProfile = {
+        consumerKey: 'prod-key',
+        consumerSecret: 'prod-secret',
+        token: 'prod-token',
+        tokenSecret: 'prod-token-secret',
+        realm: 'prod-realm'
+      };
+      saveProfile('production', productionProfile);
+      
+      const result = resolveCredentials('production');
+      expect(result.credentials).toEqual(productionProfile);
+      expect(result.source).toBe('profile');
     });
   });
 });

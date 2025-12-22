@@ -108,6 +108,65 @@ Profiles are stored in `~/.nsql-cli/config.json`. The file structure looks like:
 }
 ```
 
+## Environment Variables
+
+As an alternative to the configuration file, you can provide credentials via environment variables. This is useful for CI/CD pipelines, Docker containers, and other automated environments.
+
+### Supported Environment Variables
+
+| Environment Variable   | Description            |
+| ---------------------- | ---------------------- |
+| `NSQL_CONSUMER_KEY`    | OAuth consumer key     |
+| `NSQL_CONSUMER_SECRET` | OAuth consumer secret  |
+| `NSQL_TOKEN`           | OAuth token            |
+| `NSQL_TOKEN_SECRET`    | OAuth token secret     |
+| `NSQL_REALM`           | NetSuite account realm |
+
+### Credential Precedence
+
+The CLI follows AWS CLI-style credential resolution:
+
+1. **Environment variables** (highest priority) - If ALL 5 environment variables are set, they are used exclusively
+2. **Profile configuration file** (lower priority) - Falls back to profile when env vars are incomplete
+
+**Note:** All 5 environment variables must be set for environment variable authentication to be used. If any are missing, the CLI falls back to profile-based authentication.
+
+### Example Usage
+
+```bash
+# Set environment variables
+export NSQL_CONSUMER_KEY="your-consumer-key"
+export NSQL_CONSUMER_SECRET="your-consumer-secret"
+export NSQL_TOKEN="your-token"
+export NSQL_TOKEN_SECRET="your-token-secret"
+export NSQL_REALM="your-realm"
+
+# Execute query (no profile configuration needed)
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
+```
+
+### Docker/CI Usage
+
+```bash
+# Docker run with environment variables
+docker run -e NSQL_CONSUMER_KEY="..." \
+           -e NSQL_CONSUMER_SECRET="..." \
+           -e NSQL_TOKEN="..." \
+           -e NSQL_TOKEN_SECRET="..." \
+           -e NSQL_REALM="..." \
+           my-image nsql-cli query --query "SELECT id FROM customer"
+
+# GitHub Actions
+- name: Run SuiteQL Query
+  env:
+    NSQL_CONSUMER_KEY: ${{ secrets.NSQL_CONSUMER_KEY }}
+    NSQL_CONSUMER_SECRET: ${{ secrets.NSQL_CONSUMER_SECRET }}
+    NSQL_TOKEN: ${{ secrets.NSQL_TOKEN }}
+    NSQL_TOKEN_SECRET: ${{ secrets.NSQL_TOKEN_SECRET }}
+    NSQL_REALM: ${{ secrets.NSQL_REALM }}
+  run: nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
+```
+
 ## Usage
 
 ### Execute a Query
@@ -323,21 +382,34 @@ nsql-cli query --help
 
 ## Troubleshooting
 
-### Configuration File Not Found
+### No Credentials Found
 
-**Error:** `Configuration file not found.`
+**Error:** `Error: No credentials found.`
 
-**Solution:** Run `nsql-cli configure` to create your first profile.
+**Solution:** Provide credentials using one of these methods:
+
+1. **Environment variables:** Set all 5 required environment variables:
+
+   ```bash
+   export NSQL_CONSUMER_KEY="..."
+   export NSQL_CONSUMER_SECRET="..."
+   export NSQL_TOKEN="..."
+   export NSQL_TOKEN_SECRET="..."
+   export NSQL_REALM="..."
+   ```
+
+2. **Profile configuration:** Run `nsql-cli configure` to create a profile
 
 ### Profile Not Found
 
-**Error:** `Profile 'profile-name' not found.`
+**Error:** The CLI shows `Credentials source: (none found)` in dry-run mode
 
 **Solution:**
 
 - Check available profiles by looking at `~/.nsql-cli/config.json`
 - Create the profile using `nsql-cli configure --profile profile-name`
 - Use the correct profile name (case-sensitive)
+- Or set environment variables as described above
 
 ### Invalid Credentials
 

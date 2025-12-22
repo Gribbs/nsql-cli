@@ -278,8 +278,7 @@ describe('query', () => {
       await executeQuery('SELECT id, name FROM item', 'default', true);
 
       expect(consoleSpy.log).toHaveBeenCalledWith('Dry-run mode: Query will not be executed');
-      expect(consoleSpy.log).toHaveBeenCalledWith('Profile:', 'default');
-      expect(consoleSpy.log).toHaveBeenCalledWith('Realm: (configuration not found)');
+      expect(consoleSpy.log).toHaveBeenCalledWith('Credentials source: (none found)');
       expect(consoleSpy.log).toHaveBeenCalledWith('Query:', 'SELECT id, name FROM item');
       expect(mockClient.query).not.toHaveBeenCalled();
       expect(exitSpy).not.toHaveBeenCalled();
@@ -305,7 +304,7 @@ describe('query', () => {
       await executeQuery('SELECT id, name FROM item', 'default', true);
 
       expect(consoleSpy.log).toHaveBeenCalledWith('Dry-run mode: Query will not be executed');
-      expect(consoleSpy.log).toHaveBeenCalledWith('Profile:', 'default');
+      expect(consoleSpy.log).toHaveBeenCalledWith('Credentials source:', "profile 'default'");
       expect(consoleSpy.log).toHaveBeenCalledWith('Realm:', 'test-realm');
       expect(consoleSpy.log).toHaveBeenCalledWith('Query:', 'SELECT id, name FROM item');
       expect(mockClient.query).not.toHaveBeenCalled();
@@ -354,11 +353,161 @@ describe('query', () => {
       await executeQuery('SELECT * FROM customer', 'nonexistent', true);
 
       expect(consoleSpy.log).toHaveBeenCalledWith('Dry-run mode: Query will not be executed');
-      expect(consoleSpy.log).toHaveBeenCalledWith('Profile:', 'nonexistent');
-      expect(consoleSpy.log).toHaveBeenCalledWith('Realm: (profile not found)');
+      expect(consoleSpy.log).toHaveBeenCalledWith('Credentials source: (none found)');
       expect(consoleSpy.log).toHaveBeenCalledWith('Query:', 'SELECT * FROM customer');
       expect(mockClient.query).not.toHaveBeenCalled();
       expect(exitSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('environment variable authentication', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      // Reset environment variables before each test
+      process.env = { ...originalEnv };
+      delete process.env.NSQL_CONSUMER_KEY;
+      delete process.env.NSQL_CONSUMER_SECRET;
+      delete process.env.NSQL_TOKEN;
+      delete process.env.NSQL_TOKEN_SECRET;
+      delete process.env.NSQL_REALM;
+
+      // Ensure config directory exists and is clean
+      const configDir = path.dirname(CONFIG_FILE);
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+      if (fs.existsSync(CONFIG_FILE)) {
+        fs.unlinkSync(CONFIG_FILE);
+      }
+
+      // Mock successful query response
+      mockClient.query.mockResolvedValue({
+        items: [{ id: 1, name: 'Test' }]
+      });
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+    });
+
+    it('should use environment variables when all are set', async () => {
+      process.env.NSQL_CONSUMER_KEY = 'env-consumer-key';
+      process.env.NSQL_CONSUMER_SECRET = 'env-consumer-secret';
+      process.env.NSQL_TOKEN = 'env-token';
+      process.env.NSQL_TOKEN_SECRET = 'env-token-secret';
+      process.env.NSQL_REALM = 'env-realm';
+
+      await executeQuery('SELECT * FROM customer', 'default', false);
+
+      expect(NetsuiteApiClient).toHaveBeenCalledWith({
+        consumer_key: 'env-consumer-key',
+        consumer_secret_key: 'env-consumer-secret',
+        token: 'env-token',
+        token_secret: 'env-token-secret',
+        realm: 'env-realm'
+      });
+      expect(mockClient.query).toHaveBeenCalledWith('SELECT * FROM customer');
+    });
+
+    it('should prefer environment variables over profile', async () => {
+      // Set up both profile and environment variables
+      const profileData = {
+        consumerKey: 'profile-key',
+        consumerSecret: 'profile-secret',
+        token: 'profile-token',
+        tokenSecret: 'profile-token-secret',
+        realm: 'profile-realm'
+      };
+      saveProfile('default', profileData);
+
+      process.env.NSQL_CONSUMER_KEY = 'env-consumer-key';
+      process.env.NSQL_CONSUMER_SECRET = 'env-consumer-secret';
+      process.env.NSQL_TOKEN = 'env-token';
+      process.env.NSQL_TOKEN_SECRET = 'env-token-secret';
+      process.env.NSQL_REALM = 'env-realm';
+
+      await executeQuery('SELECT * FROM customer', 'default', false);
+
+      // Should use environment credentials, not profile
+      expect(NetsuiteApiClient).toHaveBeenCalledWith({
+        consumer_key: 'env-consumer-key',
+        consumer_secret_key: 'env-consumer-secret',
+        token: 'env-token',
+        token_secret: 'env-token-secret',
+        realm: 'env-realm'
+      });
+    });
+
+    it('should fall back to profile when env vars are incomplete', async () => {
+      const profileData = {
+        consumerKey: 'profile-key',
+        consumerSecret: 'profile-secret',
+        token: 'profile-token',
+        tokenSecret: 'profile-token-secret',
+        realm: 'profile-realm'
+      };
+      saveProfile('default', profileData);
+
+      // Set only some env vars (incomplete)
+      process.env.NSQL_CONSUMER_KEY = 'env-consumer-key';
+      process.env.NSQL_CONSUMER_SECRET = 'env-consumer-secret';
+      // Missing NSQL_TOKEN, NSQL_TOKEN_SECRET, NSQL_REALM
+
+      await executeQuery('SELECT * FROM customer', 'default', false);
+
+      // Should use profile credentials since env vars are incomplete
+      expect(NetsuiteApiClient).toHaveBeenCalledWith({
+        consumer_key: 'profile-key',
+        consumer_secret_key: 'profile-secret',
+        token: 'profile-token',
+        token_secret: 'profile-token-secret',
+        realm: 'profile-realm'
+      });
+    });
+
+    it('should show error when no credentials are available', async () => {
+      // No env vars set and no profile configured
+      await executeQuery('SELECT * FROM customer', 'default', false);
+
+      expect(consoleSpy.error).toHaveBeenCalledWith('Error: No credentials found.');
+      expect(consoleSpy.error).toHaveBeenCalledWith('Provide credentials via environment variables:');
+      expect(consoleSpy.error).toHaveBeenCalledWith('  NSQL_CONSUMER_KEY, NSQL_CONSUMER_SECRET, NSQL_TOKEN,');
+      expect(consoleSpy.error).toHaveBeenCalledWith('  NSQL_TOKEN_SECRET, NSQL_REALM');
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('should show available profiles in error message when they exist', async () => {
+      const profileData = {
+        consumerKey: 'profile-key',
+        consumerSecret: 'profile-secret',
+        token: 'profile-token',
+        tokenSecret: 'profile-token-secret',
+        realm: 'profile-realm'
+      };
+      saveProfile('production', profileData);
+
+      // Request a non-existent profile with no env vars
+      await executeQuery('SELECT * FROM customer', 'nonexistent', false);
+
+      expect(consoleSpy.error).toHaveBeenCalledWith('Error: No credentials found.');
+      expect(consoleSpy.error).toHaveBeenCalledWith('Or use an existing profile:', 'production');
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('should show credentials source as environment in dry-run mode', async () => {
+      process.env.NSQL_CONSUMER_KEY = 'env-consumer-key';
+      process.env.NSQL_CONSUMER_SECRET = 'env-consumer-secret';
+      process.env.NSQL_TOKEN = 'env-token';
+      process.env.NSQL_TOKEN_SECRET = 'env-token-secret';
+      process.env.NSQL_REALM = 'env-realm';
+
+      await executeQuery('SELECT * FROM customer', 'default', true);
+
+      expect(consoleSpy.log).toHaveBeenCalledWith('Dry-run mode: Query will not be executed');
+      expect(consoleSpy.log).toHaveBeenCalledWith('Credentials source:', 'environment variables');
+      expect(consoleSpy.log).toHaveBeenCalledWith('Realm:', 'env-realm');
+      expect(mockClient.query).not.toHaveBeenCalled();
     });
   });
 
