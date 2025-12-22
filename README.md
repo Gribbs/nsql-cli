@@ -124,8 +124,6 @@ As an alternative to the configuration file, you can provide credentials via env
 
 ### Credential Precedence
 
-The CLI follows AWS CLI-style credential resolution:
-
 1. **Environment variables** (highest priority) - If ALL 5 environment variables are set, they are used exclusively
 2. **Profile configuration file** (lower priority) - Falls back to profile when env vars are incomplete
 
