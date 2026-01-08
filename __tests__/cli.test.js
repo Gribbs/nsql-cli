@@ -857,6 +857,94 @@ describe('CLI', () => {
         }
       }
     });
+
+    it('should work with file input and multiple parameters', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      const multiLineQuery = `SELECT
+  id,
+  tranid,
+  trandate,
+  total
+FROM transaction
+WHERE type = 'SalesOrd'
+  AND trandate >= :startDate
+  AND ROWNUM <= :limit
+ORDER BY trandate DESC`;
+      fs.writeFileSync(testFile, multiLineQuery);
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`, '--startDate', '2024-01-01', '--limit', '50']);
+
+        const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient.query).toHaveBeenCalledWith("SELECT id, tranid, trandate, total FROM transaction WHERE type = 'SalesOrd' AND trandate >= '2024-01-01' AND ROWNUM <= 50 ORDER BY trandate DESC");
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
+    it('should work with file input and --param syntax', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      fs.writeFileSync(testFile, 'SELECT id FROM customer WHERE id = :id');
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`, '--param', 'id=123']);
+
+        const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient.query).toHaveBeenCalledWith("SELECT id FROM customer WHERE id = 123");
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
+    it('should work with file input and multiple --param options', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      const multiLineQuery = `SELECT
+  id,
+  entityid,
+  companyname
+FROM customer
+WHERE id = :id
+  AND entityid = :entityid`;
+      fs.writeFileSync(testFile, multiLineQuery);
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`, '--param', 'id=123', '--param', 'entityid=TEST123']);
+
+        const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient.query).toHaveBeenCalledWith("SELECT id, entityid, companyname FROM customer WHERE id = 123 AND entityid = 'TEST123'");
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
+
+    it('should handle multi-line SQL files correctly', async () => {
+      const testFile = path.join(os.tmpdir(), `test-query-${Date.now()}.sql`);
+      const multiLineQuery = `SELECT
+  id,
+  entityid,
+  companyname
+FROM customer
+WHERE ROWNUM <= 10
+ORDER BY companyname`;
+      fs.writeFileSync(testFile, multiLineQuery);
+
+      try {
+        await runCLI(['query', '--cli-input-suiteql', `file://${testFile}`]);
+
+        const mockClient = NetsuiteApiClient.mock.results[0].value;
+        expect(mockClient.query).toHaveBeenCalledWith('SELECT id, entityid, companyname FROM customer WHERE ROWNUM <= 10 ORDER BY companyname');
+      } finally {
+        if (fs.existsSync(testFile)) {
+          fs.unlinkSync(testFile);
+        }
+      }
+    });
   });
 });
 
