@@ -177,17 +177,70 @@ nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 
 ### Execute a Query from a File
 
-You can also read queries from SQL files using the `--cli-input-suiteql` option with a `file://` prefix:
+You can also read queries from SQL files using the `--cli-input-suiteql` option. SQL files contain plain SuiteQL query text. Here are examples:
+
+**Query file without parameters:**
+
+Create a file `queries/customers.sql`:
+
+```sql
+SELECT id, entityid, companyname
+FROM customer
+WHERE ROWNUM <= 10
+```
+
+Execute it without providing any parameters:
 
 ```bash
-# Read query from a relative file path
 nsql-cli query --cli-input-suiteql file://./queries/customers.sql
-
-# Read query from an absolute file path
-nsql-cli query --cli-input-suiteql file:///Users/name/queries/customers.sql
 
 # The file:// prefix is optional
 nsql-cli query --cli-input-suiteql ./queries/customers.sql
+
+# Absolute paths also work
+nsql-cli query --cli-input-suiteql file:///Users/name/queries/customers.sql
+```
+
+**Query file with parameters:**
+
+Create a file `queries/customer-by-id.sql` with placeholders:
+
+```sql
+SELECT id, entityid, companyname
+FROM customer
+WHERE id = :id
+```
+
+Execute it by providing the parameter value:
+
+```bash
+nsql-cli query --cli-input-suiteql file://./queries/customer-by-id.sql --id 123
+
+# You can also use --param syntax
+nsql-cli query --cli-input-suiteql file://./queries/customer-by-id.sql --param id=123
+```
+
+**Query file with multiple parameters:**
+
+Create a file `queries/sales-orders.sql` with multiple placeholders:
+
+```sql
+SELECT
+  id,
+  tranid,
+  trandate,
+  total
+FROM transaction
+WHERE type = 'SalesOrd'
+  AND trandate >= :startDate
+  AND ROWNUM <= :limit
+ORDER BY trandate DESC
+```
+
+Execute it by providing all parameter values:
+
+```bash
+nsql-cli query --cli-input-suiteql file://./queries/sales-orders.sql --startDate "2024-01-01" --limit 50
 ```
 
 **Note:** The `--query` and `--cli-input-suiteql` options are mutually exclusive. You must use one or the other, but not both.
