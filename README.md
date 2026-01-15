@@ -303,6 +303,18 @@ nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= :limit" --param 
 
 ### Query Examples
 
+**Get user event script execution logs (today's logs):**
+
+```bash
+nsql-cli query --query "SELECT sn.* FROM ScriptNote sn WHERE sn.scriptType IN (SELECT id FROM userEventScript WHERE scriptid = 'customscript_wwccemployeeaccred') AND TRUNC(sn.date) = TRUNC(SYSDATE) ORDER BY sn.internalid DESC"
+```
+
+Or execute from a file:
+
+```bash
+nsql-cli query --cli-input-suiteql file://./__tests__/test-queries/script-notes-today.sql
+```
+
 **Get customers (limited):**
 
 ```bash
