@@ -1,17 +1,20 @@
 # nsql CLI
 
-A command-line tool for executing SuiteQL queries against NetSuite using the `netsuite-api-client` package. Manage multiple NetSuite account profiles (sandbox/production).
+A command-line tool for executing SuiteQL queries against NetSuite. Supports both OAuth 2.0 browser-based login (recommended) and OAuth 1.0 token-based authentication (legacy). Manage multiple NetSuite account profiles (sandbox/production).
 
 ## Features
 
 - Execute SuiteQL queries from the command line
 - Read queries from SQL files using `--cli-input-suiteql`
+- **OAuth 2.0 browser-based authentication** with automatic token refresh
+- OAuth 1.0 / TBA legacy authentication support
 - Profile-based credential management
 - Support for multiple NetSuite accounts (sandbox, production, etc.)
 - Interactive configuration setup
 - Multiple output formats (JSON, CSV)
 - Dry-run mode to preview queries without executing
 - Edit existing profiles
+- Encrypted storage of sensitive credentials
 
 ## Installation
 
@@ -43,16 +46,105 @@ Then use it via `npx`:
 npx nsql-cli --help
 ```
 
-## Configuration
+## Authentication
 
-Before executing queries, you need to configure your NetSuite account credentials.
+nsql-cli supports two authentication methods:
+
+| Method | Type | Token Lifetime | Best For |
+| --- | --- | --- | --- |
+| **OAuth 2.0** (recommended) | Browser-based login | 60 min (auto-refreshes) | Local development |
+| **OAuth 1.0 / TBA** (legacy) | Long-lived tokens | Indefinite | Legacy environments |
+
+> **CI/CD note:** Neither method above is ideal for CI/CD. OAuth 2.0 Authorization Code Grant requires a browser, and OAuth 1.0 uses long-lived secrets that are a security risk. The recommended approach for CI/CD is **OAuth 2.0 Certificate-Based Authentication** (Client Credentials Grant), which uses an SSL certificate pair to obtain tokens without a browser. This is what SuiteCloud SDK uses via `account:setup:ci`. Certificate-based auth support is planned for a future release of nsql-cli.
+
+---
+
+## OAuth 2.0 Setup (Recommended)
+
+OAuth 2.0 uses browser-based login to obtain short-lived tokens that auto-refresh. No long-lived secrets are stored.
+
+### Step 1: Enable OAuth 2.0 in NetSuite
+
+1. Log in to NetSuite as an **Administrator**
+2. Navigate to **Setup > Company > Enable Features**
+3. Click the **SuiteCloud** tab
+4. Under **Manage Authentication**, check **OAuth 2.0**
+5. Click **Save**
+
+### Step 2: Create an Integration Record
+
+1. Navigate to **Setup > Integration > Manage Integrations > New**
+2. Fill in the following fields:
+   - **Name**: `nsql-cli` (or any descriptive name)
+   - **State**: Enabled
+3. Under **Authentication**:
+   - Uncheck **Token-Based Authentication** (not needed for OAuth 2.0)
+   - Check **Authorization Code Grant**
+   - **Redirect URI**: Enter `http://localhost:9749/callback`
+   - Under **Scope**, check **REST Web Services** only
+     (Leave **Client Credentials (Machine To Machine) Grant** unchecked)
+4. Click **Save**
+5. **Important**: Copy the **Client ID** and **Client Secret** shown on the confirmation page. The Client Secret is only displayed once.
+
+### Step 3: Assign OAuth 2.0 Permissions to Your Role
+
+1. Navigate to **Setup > Users/Roles > Manage Roles**
+2. Edit the role you will use for API access
+3. Under **Permissions > Setup**, add:
+   - **Log in using OAuth 2.0 Access Tokens** (Full)
+4. Click **Save**
+
+### Step 4: Configure nsql-cli
+
+You can configure OAuth 2.0 interactively or with command-line flags.
+
+**Interactive setup:**
+
+```bash
+nsql-cli configure --profile sandbox
+# Select "OAuth 2.0 - Browser login (recommended)"
+# Enter your Account ID, Client ID, and Client Secret
+```
+
+Then authenticate via browser:
+
+```bash
+nsql-cli login --profile sandbox
+```
+
+**Non-interactive setup (all flags):**
+
+```bash
+nsql-cli login --profile sandbox \
+  --account-id TSTDRV1234567 \
+  --client-id "your-client-id" \
+  --client-secret "your-client-secret"
+```
+
+This opens your browser to the NetSuite consent page. After you approve, the CLI receives temporary tokens and stores them. Tokens auto-refresh when you run queries.
+
+**Re-authenticating:** If your refresh token expires, just run `nsql-cli login --profile sandbox` again. Your Client ID and Client Secret are already saved, so no need to re-enter them.
+
+### Finding Your Account ID
+
+Your NetSuite Account ID appears in the URL when logged in: `https://TSTDRV1234567.app.netsuite.com/...`
+
+- **Production accounts**: A numeric ID like `1234567`
+- **Sandbox accounts**: Use the format `1234567_SB1`
+
+You can also find it at **Setup > Company > Company Information** under **Account ID**.
+
+---
+
+## OAuth 1.0 / TBA Setup (Legacy)
+
+Token-Based Authentication uses long-lived credentials. This is the legacy method, retained for backward compatibility and CI/CD environments.
 
 ### Initial Setup
 
-Configure the default profile:
-
 ```bash
 nsql-cli configure
+# Select "OAuth 1.0 / TBA - Token-based (legacy)"
 ```
 
 This will prompt you for:
@@ -68,16 +160,11 @@ This will prompt you for:
 Create named profiles for different environments:
 
 ```bash
-# Configure a production profile
 nsql-cli configure --profile prod
-
-# Configure a sandbox profile
 nsql-cli configure --profile sandbox
 ```
 
 ### Editing Existing Profiles
-
-To edit an existing profile, simply run configure with the profile name:
 
 ```bash
 nsql-cli configure --profile prod
@@ -85,32 +172,45 @@ nsql-cli configure --profile prod
 
 The tool will display the current configuration (with masked sensitive values) and allow you to update any fields.
 
-### Configuration Storage
+---
 
-Profiles are stored in `~/.nsql-cli/config.json`. The file structure looks like:
+## Configuration Storage
+
+Profiles are stored in `~/.nsql-cli/config.json`. Sensitive values (Client Secret, refresh tokens) are encrypted with AES-256-CBC.
+
+**OAuth 2.0 profile example (stored encrypted):**
 
 ```json
 {
-  "default": {
+  "sandbox": {
+    "authType": "oauth2",
+    "accountId": "TSTDRV1234567",
+    "clientId": "abc...",
+    "clientSecret": "<encrypted>",
+    "accessToken": "eyJ...",
+    "refreshToken": "<encrypted>",
+    "tokenExpiry": 1708300000000
+  }
+}
+```
+
+**OAuth 1.0 profile example:**
+
+```json
+{
+  "prod": {
     "consumerKey": "your-consumer-key",
     "consumerSecret": "your-consumer-secret",
     "token": "your-token",
     "tokenSecret": "your-token-secret",
     "realm": "your-realm"
-  },
-  "prod": {
-    "consumerKey": "...",
-    "consumerSecret": "...",
-    "token": "...",
-    "tokenSecret": "...",
-    "realm": "..."
   }
 }
 ```
 
-## Environment Variables
+## Environment Variables (OAuth 1.0)
 
-As an alternative to the configuration file, you can provide credentials via environment variables. This is useful for CI/CD pipelines, Docker containers, and other automated environments.
+As an alternative to the configuration file, you can provide OAuth 1.0 credentials via environment variables. This is useful for CI/CD pipelines.
 
 ### Supported Environment Variables
 
@@ -124,45 +224,18 @@ As an alternative to the configuration file, you can provide credentials via env
 
 ### Credential Precedence
 
-1. **Environment variables** (highest priority) - If ALL 5 environment variables are set, they are used exclusively
-2. **Profile configuration file** (lower priority) - Falls back to profile when env vars are incomplete
-
-**Note:** All 5 environment variables must be set for environment variable authentication to be used. If any are missing, the CLI falls back to profile-based authentication.
-
-### Example Usage
-
-```bash
-# Set environment variables
-export NSQL_CONSUMER_KEY="your-consumer-key"
-export NSQL_CONSUMER_SECRET="your-consumer-secret"
-export NSQL_TOKEN="your-token"
-export NSQL_TOKEN_SECRET="your-token-secret"
-export NSQL_REALM="your-realm"
-
-# Execute query (no profile configuration needed)
-nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
-```
+1. **Environment variables** (highest priority) - If ALL 5 environment variables are set, they are used
+2. **Profile configuration file** - Falls back to profile when env vars are incomplete
 
 ### Docker/CI Usage
 
 ```bash
-# Docker run with environment variables
 docker run -e NSQL_CONSUMER_KEY="..." \
            -e NSQL_CONSUMER_SECRET="..." \
            -e NSQL_TOKEN="..." \
            -e NSQL_TOKEN_SECRET="..." \
            -e NSQL_REALM="..." \
            my-image nsql-cli query --query "SELECT id FROM customer"
-
-# GitHub Actions
-- name: Run SuiteQL Query
-  env:
-    NSQL_CONSUMER_KEY: ${{ secrets.NSQL_CONSUMER_KEY }}
-    NSQL_CONSUMER_SECRET: ${{ secrets.NSQL_CONSUMER_SECRET }}
-    NSQL_TOKEN: ${{ secrets.NSQL_TOKEN }}
-    NSQL_TOKEN_SECRET: ${{ secrets.NSQL_TOKEN_SECRET }}
-    NSQL_REALM: ${{ secrets.NSQL_REALM }}
-  run: nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1"
 ```
 
 ## Usage
@@ -368,7 +441,7 @@ nsql-cli query --cli-input-suiteql file://./query.sql --id 123
 
 ### `configure`
 
-Set up or edit NetSuite account credentials.
+Set up or edit NetSuite account credentials. Prompts you to choose between OAuth 2.0 and OAuth 1.0 authentication.
 
 **Options:**
 
@@ -382,6 +455,41 @@ nsql-cli configure --profile prod
 nsql-cli configure --profile sandbox
 ```
 
+### `login`
+
+Authenticate with NetSuite using browser-based OAuth 2.0. Opens your default browser for the NetSuite consent flow and stores the resulting tokens.
+
+**Options:**
+
+- `-p, --profile <name>` - Profile name (defaults to "default")
+- `--port <port>` - Local callback server port (defaults to "9749")
+- `--account-id <id>` - NetSuite account ID (skips interactive prompt)
+- `--client-id <id>` - OAuth 2.0 Client ID (skips interactive prompt)
+- `--client-secret <secret>` - OAuth 2.0 Client Secret (skips interactive prompt)
+- `--debug` - Enable debug logging (outputs to stderr)
+
+**Examples:**
+
+```bash
+# Interactive login (prompts for credentials if not already configured)
+nsql-cli login
+
+# Login with a named profile
+nsql-cli login --profile sandbox
+
+# Non-interactive login (all flags provided)
+nsql-cli login --profile sandbox \
+  --account-id TSTDRV1234567 \
+  --client-id "your-client-id" \
+  --client-secret "your-client-secret"
+
+# Re-authenticate an existing OAuth 2.0 profile (uses saved credentials)
+nsql-cli login --profile sandbox
+
+# Use a custom callback port
+nsql-cli login --profile sandbox --port 8080
+```
+
 ### `query`
 
 Execute a SuiteQL query.
@@ -392,6 +500,7 @@ Execute a SuiteQL query.
 - `--cli-input-suiteql <file>` - Read SuiteQL query from file (use `file://` prefix for file path). Mutually exclusive with `--query`
 - `-p, --profile <name>` - Profile to use (defaults to "default")
 - `--dry-run` - Preview the query without executing it
+- `--debug` - Enable debug logging (outputs to stderr)
 - `-f, --format <format>` - Output format: `json` or `csv` (defaults to "json")
 - `--param <key=value>` - Query parameter (can be used multiple times). Use `:key` in query as placeholder
 - `--<key> <value>` - Alternative way to pass parameters. Any unknown option is treated as a parameter
@@ -431,6 +540,9 @@ nsql-cli query --cli-input-suiteql file://./queries/customers.sql --dry-run
 
 # Execute query from file with CSV output
 nsql-cli query --cli-input-suiteql file://./queries/customers.sql --format csv
+
+# Debug mode (shows auth flow, token refresh, request/response details)
+nsql-cli query --query "SELECT id FROM customer WHERE ROWNUM <= 1" --debug
 ```
 
 ### Help
@@ -449,32 +561,49 @@ nsql-cli query --help
 
 **Error:** `Error: No credentials found.`
 
-**Solution:** Provide credentials using one of these methods:
+**Solution:**
 
-1. **Environment variables:** Set all 5 required environment variables:
+1. **OAuth 2.0:** Run `nsql-cli login --profile <name>` to authenticate
+2. **OAuth 1.0:** Run `nsql-cli configure --profile <name>` or set environment variables
+3. Verify you're using the correct `--profile` name (case-sensitive)
 
-   ```bash
-   export NSQL_CONSUMER_KEY="..."
-   export NSQL_CONSUMER_SECRET="..."
-   export NSQL_TOKEN="..."
-   export NSQL_TOKEN_SECRET="..."
-   export NSQL_REALM="..."
-   ```
+### Token Refresh Failed
 
-2. **Profile configuration:** Run `nsql-cli configure` to create a profile
+**Error:** `Token refresh failed: invalid_grant`
 
-### Profile Not Found
+**Solution:** Your refresh token has expired. Re-authenticate:
 
-**Error:** The CLI shows `Credentials source: (none found)` in dry-run mode
+```bash
+nsql-cli login --profile <profile-name>
+```
+
+### Browser Does Not Open
+
+**Error:** The `login` command doesn't open a browser
 
 **Solution:**
 
-- Check available profiles by looking at `~/.nsql-cli/config.json`
-- Create the profile using `nsql-cli configure --profile profile-name`
-- Use the correct profile name (case-sensitive)
-- Or set environment variables as described above
+1. Copy the URL printed in the terminal and paste it into your browser manually
+2. If running in a headless environment (SSH, container), OAuth 2.0 browser login won't work -- use OAuth 1.0 / TBA instead
 
-### Invalid Credentials
+### OAuth 2.0: "Invalid Redirect URI"
+
+**Error:** NetSuite shows "Invalid redirect URI" in the browser
+
+**Solution:**
+
+- Verify the Redirect URI in your Integration Record matches exactly: `http://localhost:9749/callback`
+- If you use `--port`, ensure the port matches the Redirect URI (e.g., `--port 8080` requires `http://localhost:8080/callback` in NetSuite)
+
+### OAuth 2.0: "Access Denied" or "Insufficient Permissions"
+
+**Solution:**
+
+- Ensure your NetSuite role has the **Log in using OAuth 2.0 Access Tokens** permission (Setup > Users/Roles > Manage Roles)
+- Ensure the Integration Record has **REST Web Services** scope enabled
+- Ensure your user is assigned a role with SuiteQL access
+
+### Invalid Credentials (OAuth 1.0)
 
 **Error:** `Error executing query: [authentication error]`
 
@@ -507,19 +636,11 @@ nsql-cli query --help
 
 ## Requirements
 
-- Node.js (version 12 or higher)
+- Node.js (version 18 or higher)
 - NetSuite account with SuiteQL access
-- NetSuite RESTlet credentials (Consumer Key, Consumer Secret, Token, Token Secret, Realm)
-
-## Getting NetSuite Credentials
-
-To use this tool, you need to set up a NetSuite integration:
-
-1. Go to Setup > Integrations > Manage Integrations > New
-2. Create a new integration and note the Consumer Key and Consumer Secret
-3. Create an access token (Setup > Users/Roles > Access Tokens > New)
-4. Note the Token, Token Secret, and Realm
-5. Assign appropriate permissions to the integration role
+- One of:
+  - **OAuth 2.0**: Integration Record with Authorization Code Grant enabled (see [OAuth 2.0 Setup](#oauth-20-setup-recommended))
+  - **OAuth 1.0**: Consumer Key, Consumer Secret, Token, Token Secret, Realm (see [OAuth 1.0 Setup](#oauth-10--tba-setup-legacy))
 
 ## Output Format
 

@@ -26,7 +26,8 @@
   "dependencies": {
     "commander": "^11.1.0",
     "inquirer": "^9.2.12",
-    "netsuite-api-client": "^1.0.0"
+    "netsuite-api-client": "^1.0.0",
+    "open": "^11.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",

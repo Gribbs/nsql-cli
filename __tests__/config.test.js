@@ -20,6 +20,11 @@ const {
   validateProfile,
   getEnvCredentials,
   resolveCredentials,
+  saveOAuth2Profile,
+  saveOAuth2Tokens,
+  isTokenExpired,
+  encrypt,
+  decrypt,
   CONFIG_FILE
 } = require('../lib/config');
 
@@ -520,6 +525,171 @@ describe('config', () => {
       const result = resolveCredentials('production');
       expect(result.credentials).toEqual(productionProfile);
       expect(result.source).toBe('profile');
+    });
+
+    it('should return authType oauth1 for legacy profiles', () => {
+      const profileData = {
+        consumerKey: 'key',
+        consumerSecret: 'secret',
+        token: 'token',
+        tokenSecret: 'token-secret',
+        realm: 'realm'
+      };
+      saveProfile('default', profileData);
+
+      const result = resolveCredentials('default');
+      expect(result.authType).toBe('oauth1');
+    });
+
+    it('should return authType oauth2 for OAuth2 profiles', () => {
+      saveOAuth2Profile('oauth2-profile', {
+        accountId: 'TSTDRV123',
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+      });
+
+      const result = resolveCredentials('oauth2-profile');
+      expect(result.authType).toBe('oauth2');
+      expect(result.credentials.accountId).toBe('TSTDRV123');
+      expect(result.credentials.clientId).toBe('client-id');
+      expect(result.credentials.clientSecret).toBe('client-secret');
+    });
+  });
+
+  describe('validateProfile - OAuth2', () => {
+    it('should return true for valid OAuth2 profile', () => {
+      const validProfile = {
+        authType: 'oauth2',
+        accountId: 'TSTDRV123',
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+      };
+      expect(validateProfile(validProfile)).toBe(true);
+    });
+
+    it('should return false for OAuth2 profile missing accountId', () => {
+      const invalidProfile = {
+        authType: 'oauth2',
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+      };
+      expect(validateProfile(invalidProfile)).toBe(false);
+    });
+
+    it('should return false for OAuth2 profile with empty clientId', () => {
+      const invalidProfile = {
+        authType: 'oauth2',
+        accountId: 'TSTDRV123',
+        clientId: '',
+        clientSecret: 'client-secret',
+      };
+      expect(validateProfile(invalidProfile)).toBe(false);
+    });
+  });
+
+  describe('encrypt and decrypt', () => {
+    it('should round-trip a string', () => {
+      const original = 'my-secret-value';
+      const encrypted = encrypt(original);
+      expect(encrypted).not.toBe(original);
+      expect(encrypted).toContain(':');
+      const decrypted = decrypt(encrypted);
+      expect(decrypted).toBe(original);
+    });
+
+    it('should return null/undefined for falsy input', () => {
+      expect(encrypt(null)).toBeNull();
+      expect(encrypt(undefined)).toBeUndefined();
+      expect(decrypt(null)).toBeNull();
+      expect(decrypt(undefined)).toBeUndefined();
+    });
+
+    it('should produce different ciphertext each time (random IV)', () => {
+      const original = 'same-value';
+      const enc1 = encrypt(original);
+      const enc2 = encrypt(original);
+      expect(enc1).not.toBe(enc2);
+      expect(decrypt(enc1)).toBe(original);
+      expect(decrypt(enc2)).toBe(original);
+    });
+  });
+
+  describe('saveOAuth2Profile and saveOAuth2Tokens', () => {
+    it('should save an OAuth2 profile with encrypted clientSecret', () => {
+      saveOAuth2Profile('test-oauth2', {
+        accountId: 'TSTDRV123',
+        clientId: 'client-id',
+        clientSecret: 'super-secret',
+      });
+
+      const raw = getProfile('test-oauth2');
+      expect(raw.authType).toBe('oauth2');
+      expect(raw.accountId).toBe('TSTDRV123');
+      expect(raw.clientId).toBe('client-id');
+      expect(raw.clientSecret).not.toBe('super-secret');
+      expect(raw.clientSecret).toContain(':');
+      expect(raw.realm).toBe('TSTDRV123');
+    });
+
+    it('should save tokens with encrypted refreshToken', () => {
+      saveOAuth2Profile('tokens-test', {
+        accountId: 'TSTDRV123',
+        clientId: 'client-id',
+        clientSecret: 'secret',
+      });
+
+      saveOAuth2Tokens('tokens-test', {
+        accessToken: 'access-jwt',
+        refreshToken: 'refresh-value',
+        tokenExpiry: 1700000000000,
+      });
+
+      const raw = getProfile('tokens-test');
+      expect(raw.accessToken).toBe('access-jwt');
+      expect(raw.refreshToken).not.toBe('refresh-value');
+      expect(raw.refreshToken).toContain(':');
+      expect(raw.tokenExpiry).toBe(1700000000000);
+    });
+
+    it('should throw when saving tokens for non-existent profile', () => {
+      expect(() => {
+        saveOAuth2Tokens('nonexistent', {
+          accessToken: 'token',
+          refreshToken: 'refresh',
+          tokenExpiry: 1700000000000,
+        });
+      }).toThrow("Profile 'nonexistent' not found");
+    });
+  });
+
+  describe('isTokenExpired', () => {
+    it('should return true when no accessToken', () => {
+      expect(isTokenExpired({ tokenExpiry: Date.now() + 60000 })).toBe(true);
+    });
+
+    it('should return true when no tokenExpiry', () => {
+      expect(isTokenExpired({ accessToken: 'token' })).toBe(true);
+    });
+
+    it('should return true when token is expired', () => {
+      expect(isTokenExpired({
+        accessToken: 'token',
+        tokenExpiry: Date.now() - 1000,
+      })).toBe(true);
+    });
+
+    it('should return true when token expires within 5 minutes', () => {
+      expect(isTokenExpired({
+        accessToken: 'token',
+        tokenExpiry: Date.now() + (2 * 60 * 1000),
+      })).toBe(true);
+    });
+
+    it('should return false when token has more than 5 minutes left', () => {
+      expect(isTokenExpired({
+        accessToken: 'token',
+        tokenExpiry: Date.now() + (10 * 60 * 1000),
+      })).toBe(false);
     });
   });
 });
