@@ -64,17 +64,19 @@ describe('configure', () => {
 
   describe('creating new profile', () => {
     it('should create a new profile with provided credentials', async () => {
-      inquirer.prompt.mockResolvedValue({
-        consumerKey: 'test-key',
-        consumerSecret: 'test-secret',
-        token: 'test-token',
-        tokenSecret: 'test-token-secret',
-        realm: 'test-realm'
-      });
+      inquirer.prompt
+        .mockResolvedValueOnce({ authType: 'oauth1' })
+        .mockResolvedValueOnce({
+          consumerKey: 'test-key',
+          consumerSecret: 'test-secret',
+          token: 'test-token',
+          tokenSecret: 'test-token-secret',
+          realm: 'test-realm'
+        });
 
       await configure('new-profile');
 
-      expect(inquirer.prompt).toHaveBeenCalled();
+      expect(inquirer.prompt).toHaveBeenCalledTimes(2);
       expect(consoleSpy.log).toHaveBeenCalledWith(expect.stringContaining('Creating new profile: new-profile'));
       expect(consoleSpy.log).toHaveBeenCalledWith(expect.stringContaining("Profile 'new-profile' saved successfully!"));
 
@@ -89,13 +91,15 @@ describe('configure', () => {
     });
 
     it('should create default profile when no name provided', async () => {
-      inquirer.prompt.mockResolvedValue({
-        consumerKey: 'default-key',
-        consumerSecret: 'default-secret',
-        token: 'default-token',
-        tokenSecret: 'default-token-secret',
-        realm: 'default-realm'
-      });
+      inquirer.prompt
+        .mockResolvedValueOnce({ authType: 'oauth1' })
+        .mockResolvedValueOnce({
+          consumerKey: 'default-key',
+          consumerSecret: 'default-secret',
+          token: 'default-token',
+          tokenSecret: 'default-token-secret',
+          realm: 'default-realm'
+        });
 
       await configure();
 
@@ -122,13 +126,15 @@ describe('configure', () => {
 
       saveProfile('existing-profile', existingProfile);
 
-      inquirer.prompt.mockResolvedValue({
-        consumerKey: 'updated-key',
-        consumerSecret: 'updated-secret',
-        token: 'updated-token',
-        tokenSecret: 'updated-token-secret',
-        realm: 'updated-realm'
-      });
+      inquirer.prompt
+        .mockResolvedValueOnce({ authType: 'oauth1' })
+        .mockResolvedValueOnce({
+          consumerKey: 'updated-key',
+          consumerSecret: 'updated-secret',
+          token: 'updated-token',
+          tokenSecret: 'updated-token-secret',
+          realm: 'updated-realm'
+        });
 
       await configure('existing-profile');
 
@@ -156,17 +162,18 @@ describe('configure', () => {
 
       saveProfile('test-profile', existingProfile);
 
-      inquirer.prompt.mockResolvedValue({
-        consumerKey: 'new-key',
-        consumerSecret: 'new-secret',
-        token: 'new-token',
-        tokenSecret: 'new-token-secret',
-        realm: 'new-realm'
-      });
+      inquirer.prompt
+        .mockResolvedValueOnce({ authType: 'oauth1' })
+        .mockResolvedValueOnce({
+          consumerKey: 'new-key',
+          consumerSecret: 'new-secret',
+          token: 'new-token',
+          tokenSecret: 'new-token-secret',
+          realm: 'new-realm'
+        });
 
       await configure('test-profile');
 
-      // Check that masked values are displayed
       const logCalls = consoleSpy.log.mock.calls.map(call => call[0]).join('\n');
       expect(logCalls).toContain('****');
     });
@@ -182,21 +189,22 @@ describe('configure', () => {
 
       saveProfile('test-profile', existingProfile);
 
-      inquirer.prompt.mockResolvedValue({
-        consumerKey: 'new-key',
-        consumerSecret: 'new-secret',
-        token: 'new-token',
-        tokenSecret: 'new-token-secret',
-        realm: 'new-realm'
-      });
+      inquirer.prompt
+        .mockResolvedValueOnce({ authType: 'oauth1' })
+        .mockResolvedValueOnce({
+          consumerKey: 'new-key',
+          consumerSecret: 'new-secret',
+          token: 'new-token',
+          tokenSecret: 'new-token-secret',
+          realm: 'new-realm'
+        });
 
       await configure('test-profile');
 
-      // Check that inquirer.prompt was called with questions containing masked values
-      expect(inquirer.prompt).toHaveBeenCalled();
-      const questions = inquirer.prompt.mock.calls[0][0];
+      expect(inquirer.prompt).toHaveBeenCalledTimes(2);
+      // Second call contains the OAuth1 field questions
+      const questions = inquirer.prompt.mock.calls[1][0];
       
-      // Verify prompt messages contain masked values in brackets
       const consumerKeyQuestion = questions.find(q => q.name === 'consumerKey');
       expect(consumerKeyQuestion.message).toContain('[');
       expect(consumerKeyQuestion.message).toContain(']');
@@ -217,7 +225,6 @@ describe('configure', () => {
       expect(tokenSecretQuestion.message).toContain(']');
       expect(tokenSecretQuestion.message).toMatch(/\*\*\*\*/);
       
-      // Realm should show full value (not masked)
       const realmQuestion = questions.find(q => q.name === 'realm');
       expect(realmQuestion.message).toContain('[test-realm]');
     });
@@ -233,18 +240,18 @@ describe('configure', () => {
 
       saveProfile('test-profile', existingProfile);
 
-      // Mock empty input (simulating pressing Enter)
-      inquirer.prompt.mockResolvedValue({
-        consumerKey: '',
-        consumerSecret: '',
-        token: '',
-        tokenSecret: '',
-        realm: ''
-      });
+      inquirer.prompt
+        .mockResolvedValueOnce({ authType: 'oauth1' })
+        .mockResolvedValueOnce({
+          consumerKey: '',
+          consumerSecret: '',
+          token: '',
+          tokenSecret: '',
+          realm: ''
+        });
 
       await configure('test-profile');
 
-      // Verify that existing values were preserved
       const profile = getProfile('test-profile');
       expect(profile).toEqual({
         consumerKey: 'existing-key',
@@ -269,13 +276,15 @@ describe('configure', () => {
     });
 
     it('should handle validation errors', async () => {
-      inquirer.prompt.mockResolvedValue({
-        consumerKey: '',
-        consumerSecret: '',
-        token: '',
-        tokenSecret: '',
-        realm: ''
-      });
+      inquirer.prompt
+        .mockResolvedValueOnce({ authType: 'oauth1' })
+        .mockResolvedValueOnce({
+          consumerKey: '',
+          consumerSecret: '',
+          token: '',
+          tokenSecret: '',
+          realm: ''
+        });
 
       await configure('test-profile');
 
@@ -296,13 +305,15 @@ describe('configure', () => {
 
   describe('input trimming', () => {
     it('should trim whitespace from input values', async () => {
-      inquirer.prompt.mockResolvedValue({
-        consumerKey: '  test-key  ',
-        consumerSecret: '  test-secret  ',
-        token: '  test-token  ',
-        tokenSecret: '  test-token-secret  ',
-        realm: '  test-realm  '
-      });
+      inquirer.prompt
+        .mockResolvedValueOnce({ authType: 'oauth1' })
+        .mockResolvedValueOnce({
+          consumerKey: '  test-key  ',
+          consumerSecret: '  test-secret  ',
+          token: '  test-token  ',
+          tokenSecret: '  test-token-secret  ',
+          realm: '  test-realm  '
+        });
 
       await configure('trimmed-profile');
 

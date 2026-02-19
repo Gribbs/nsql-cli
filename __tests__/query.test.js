@@ -471,7 +471,7 @@ describe('query', () => {
       await executeQuery('SELECT * FROM customer', 'default', false);
 
       expect(consoleSpy.error).toHaveBeenCalledWith('Error: No credentials found.');
-      expect(consoleSpy.error).toHaveBeenCalledWith('Provide credentials via environment variables:');
+      expect(consoleSpy.error).toHaveBeenCalledWith('Or provide OAuth 1.0 credentials via environment variables:');
       expect(consoleSpy.error).toHaveBeenCalledWith('  NSQL_CONSUMER_KEY, NSQL_CONSUMER_SECRET, NSQL_TOKEN,');
       expect(consoleSpy.error).toHaveBeenCalledWith('  NSQL_TOKEN_SECRET, NSQL_REALM');
       expect(exitSpy).toHaveBeenCalledWith(1);

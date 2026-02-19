@@ -3,6 +3,9 @@
 const { Command } = require('commander');
 const { configure } = require('./lib/configure');
 const { executeQuery } = require('./lib/query');
+const { login } = require('./lib/oauth2');
+const { saveOAuth2Profile, saveOAuth2Tokens, getProfile, profileExists, decryptOAuth2Profile } = require('./lib/config');
+const debug = require('./lib/debug');
 const fs = require('fs');
 const path = require('path');
 const { version } = require('./package.json');
@@ -20,6 +23,93 @@ program
   .option('-p, --profile <name>', 'Profile name to configure (defaults to "default")', 'default')
   .action(async (options) => {
     await configure(options.profile);
+  });
+
+program
+  .command('login')
+  .description('Authenticate with NetSuite using browser-based OAuth 2.0')
+  .option('-p, --profile <name>', 'Profile name', 'default')
+  .option('--port <port>', 'Local callback server port', '9749')
+  .option('--account-id <id>', 'NetSuite account ID (e.g. TSTDRV1234567 or 1234567_SB1)')
+  .option('--client-id <id>', 'OAuth 2.0 Client ID from your Integration Record')
+  .option('--client-secret <secret>', 'OAuth 2.0 Client Secret from your Integration Record')
+  .option('--debug', 'Enable debug logging')
+  .action(async (options) => {
+    try {
+      if (options.debug) debug.enable();
+      const port = parseInt(options.port, 10);
+      const profileName = options.profile;
+
+      let accountId = options.accountId;
+      let clientId = options.clientId;
+      let clientSecret = options.clientSecret;
+
+      const existingProfile = profileExists(profileName) ? getProfile(profileName) : null;
+      const isOAuth2Profile = existingProfile?.authType === 'oauth2';
+
+      if (!accountId || !clientId || !clientSecret) {
+        if (isOAuth2Profile) {
+          const decrypted = decryptOAuth2Profile(existingProfile);
+          accountId = accountId || decrypted.accountId;
+          clientId = clientId || decrypted.clientId;
+          clientSecret = clientSecret || decrypted.clientSecret;
+          console.log(`\nRe-authenticating profile '${profileName}' (${accountId})`);
+        } else {
+          const inquirer = require('inquirer');
+          const prompt = inquirer.default?.prompt || inquirer.createPromptModule();
+
+          console.log('\nOAuth 2.0 Login Setup');
+          console.log('You will need your NetSuite Integration Record details.');
+          console.log('See: nsql-cli README for NetSuite setup instructions.\n');
+
+          const answers = await prompt([
+            {
+              type: 'input',
+              name: 'accountId',
+              message: 'NetSuite Account ID (e.g. TSTDRV1234567 or 1234567_SB1):',
+              when: () => !accountId,
+              validate: (v) => v.trim().length > 0 || 'Account ID is required',
+              filter: (v) => v.trim(),
+            },
+            {
+              type: 'input',
+              name: 'clientId',
+              message: 'Client ID (from Integration Record):',
+              when: () => !clientId,
+              validate: (v) => v.trim().length > 0 || 'Client ID is required',
+              filter: (v) => v.trim(),
+            },
+            {
+              type: 'password',
+              name: 'clientSecret',
+              message: 'Client Secret (from Integration Record):',
+              when: () => !clientSecret,
+              mask: '*',
+              validate: (v) => v.trim().length > 0 || 'Client Secret is required',
+              filter: (v) => v.trim(),
+            },
+          ]);
+
+          accountId = accountId || answers.accountId;
+          clientId = clientId || answers.clientId;
+          clientSecret = clientSecret || answers.clientSecret;
+        }
+      }
+
+      saveOAuth2Profile(profileName, { accountId, clientId, clientSecret });
+
+      const tokens = await login({ accountId, clientId, clientSecret }, port);
+
+      saveOAuth2Tokens(profileName, tokens);
+
+      console.log(`\nProfile '${profileName}' authenticated successfully.`);
+      console.log(`  Account: ${accountId}`);
+      console.log(`  Token expires: ${new Date(tokens.tokenExpiry).toLocaleString()}`);
+      console.log(`  Tokens will auto-refresh when running queries.`);
+    } catch (error) {
+      console.error(`\nLogin failed: ${error.message}`);
+      process.exit(1);
+    }
   });
 
 /**
@@ -56,6 +146,7 @@ const queryCommand = program
   .option('--cli-input-suiteql <file>', 'Read SuiteQL query from file (use file:// prefix for file path)')
   .option('-p, --profile <name>', 'Profile to use (defaults to "default")', 'default')
   .option('--dry-run', 'Preview the query without executing it')
+  .option('--debug', 'Enable debug logging')
   .option('-f, --format <format>', 'Output format: json or csv (defaults to "json")', 'json')
   .option('--param <key=value>', 'Query parameter (can be used multiple times). Use :key in query as placeholder', (value, prev) => {
     const [key, val] = value.split('=');
@@ -123,7 +214,7 @@ const queryCommand = program
         i += 2;
         continue;
       }
-      if (arg === '--dry-run') {
+      if (arg === '--dry-run' || arg === '--debug') {
         i += 1;
         continue;
       }
@@ -149,6 +240,7 @@ const queryCommand = program
       }
     }
     
+    if (options.debug) debug.enable();
     await executeQuery(query, options.profile, options.dryRun, options.format, params);
   });
 

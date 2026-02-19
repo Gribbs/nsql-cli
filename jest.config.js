@@ -1,6 +1,7 @@
 module.exports = {
   testEnvironment: 'node',
-  maxWorkers: process.env.CI ? 1 : '50%', // Run serially in CI to prevent test isolation issues
+  forceExit: true,
+  maxWorkers: process.env.CI ? 1 : '50%',
   coveragePathIgnorePatterns: [
     '/node_modules/',
     '/test/'
